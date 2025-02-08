@@ -6,61 +6,50 @@ import { adminToken } from "../utils/adminToken.js";
 import crypto from "crypto";
 
 export const register = catchAsyncError(async (req, res, next) => {
-  try {
-    const { name, email, phone, password } = req.body;
-    if (!name || !email || !phone || !password) {
-      return next(new ErrorHandler("All fields are required.", 400));
-    }
+  const { name, email, phone, password } = req.body;
+  console.log("Request received:", req.body);
 
-    function validatePhoneNumber(phone) {
-      const phoneRegex = /^\+91\d{10}$/;
-      return phoneRegex.test(phone);
-    }
-
-    if (!validatePhoneNumber(phone)) {
-      return next(new ErrorHandler("Invalid phone number.", 400));
-    }
-
-    const existingadmin = await Admin.findOne({
-      $or: [
-        {
-          email,
-        },
-        {
-          phone,
-        },
-      ],
-    });
-
-    if (existingadmin) {
-      return next(new ErrorHandler("Phone or Email is already used.", 400));
-    }
-
-    const registerationAttemptsByadmin = await Admin.find({
-      $or: [{ phone }, { email }],
-    });
-
-    if (registerationAttemptsByadmin.length > 3) {
-      return next(
-        new ErrorHandler(
-          "You have exceeded the maximum number of attempts (3). Please try again after an hour.",
-          400
-        )
-      );
-    }
-
-    const adminData = {
-      name,
-      email,
-      phone,
-      password,
-    };
-    console.log(" adminData", adminData);
-    const admin = await Admin.create(adminData);
-    await admin.save();
-  } catch (error) {
-    next(error);
+  if (!name || !email || !phone || !password) {
+    return next(new ErrorHandler("All fields are required.", 400));
   }
+
+  function validatePhoneNumber(phone) {
+    const phoneRegex = /^(\+91)?[6-9]\d{9}$/;
+    return phoneRegex.test(phone);
+  }
+
+  if (!validatePhoneNumber(phone)) {
+    return next(new ErrorHandler("Invalid phone number.", 400));
+  }
+
+  const existingAdmin = await Admin.findOne({
+    $or: [{ email }, { phone }],
+  });
+
+  if (existingAdmin) {
+    return next(new ErrorHandler("Phone or Email is already used.", 400));
+  }
+
+  const registrationAttemptsByAdmin = await Admin.countDocuments({
+    $or: [{ phone }, { email }],
+  });
+
+  if (registrationAttemptsByAdmin > 3) {
+    return next(
+      new ErrorHandler(
+        "You have exceeded the maximum number of attempts (3). Please try again after an hour.",
+        400
+      )
+    );
+  }
+
+  const newAdmin = await Admin.create({ name, email, phone, password });
+
+  res.status(201).json({
+    success: true,
+    message: "Admin registered successfully",
+    admin: newAdmin,
+  });
 });
 
 export const login = catchAsyncError(async (req, res, next) => {

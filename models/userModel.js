@@ -30,7 +30,8 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-  regNumber: { type: String, unique: true },  // <-- Added registration number
+  temp: { type: String, unique: true },  
+  tempRegNumber: { type: String } // <-- Added registration number
 });
 
 

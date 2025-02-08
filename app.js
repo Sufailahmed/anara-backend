@@ -8,7 +8,6 @@ import userRouter from "./routes/userRouter.js";
 import volunteerRouter from "./routes/volunteerRouter.js";
 import adminRouter from "./routes/adminRouter.js";
 import { removeUnverifiedAccounts } from "./automation/removeUnverifiedAccounts.js";
-import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -17,11 +16,8 @@ config({ path: "./config.env" });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const upload = multer({ dest: "uploads/" });
 
-app.post("/upload", upload.single("file"), (req, res) => {
-  res.send("File uploaded!");
-});
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use(
   cors({
