@@ -4,6 +4,9 @@ import { Admin } from "../models/adminModel.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { adminToken } from "../utils/adminToken.js";
 import crypto from "crypto";
+import { Volunteer } from "../models/volunteerModel.js";
+import { User } from "../models/userModel.js";
+
 
 export const register = catchAsyncError(async (req, res, next) => {
   const { name, email, phone, password } = req.body;
@@ -171,4 +174,23 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
 
   // Send success response and token
   adminToken(admin, 200, "Password reset successfully.", res);
+});
+
+export const getAllVolunteersAndUsers = catchAsyncError(async (req, res, next) => {
+  try {
+    // Fetch all volunteers
+    const volunteers = await Volunteer.find({});
+
+    // Fetch all users
+    const users = await User.find({});
+
+    // Combine the results into a single response
+    res.status(200).json({
+      success: true,
+      volunteers,
+      users,
+    });
+  } catch (error) {
+    return next(new ErrorHandler("Failed to fetch volunteers and users.", 500));
+  }
 });

@@ -32,7 +32,7 @@ const volunteerSchema = new mongoose.Schema({
     default: Date.now,
   },
   temp: { type: String, unique: true },  
-  tempRegNumber: { type: String }
+  tempRegNumber: { type: String ,unique:true}
 });
 
 volunteerSchema.pre("save", async function (next) {

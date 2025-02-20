@@ -10,6 +10,7 @@ import {
   resetPassword,
   generateTemporaryRegNumber,
   approveEmail,
+  getVolunteersDropdown,
 } from "../controllers/userController.js";
 import { isAuthenticated } from "../middlewares/auth.js";
 import { upload } from "../multer/upload.js";
@@ -23,6 +24,8 @@ router.post("/verify-email-otp", verifyEmailOTP); //Verify OTP for email verific
 router.post("/generate-temp-reg", generateTemporaryRegNumber); //Generate temporary registration number
 
 router.get('/approve', approveEmail) //Approve email
+
+router.get("/volunteers", getVolunteersDropdown); //All volunteers for the dropdown
 
 router.post("/register", upload.fields([
   { name: "image", maxCount: 1 },
@@ -40,5 +43,6 @@ router.get("/me", isAuthenticated, getUser); //Get user information
 router.post("/forgot-password", forgotPassword); //Forgot password
 
 router.put("/reset-password/:token", resetPassword); //Reset password with token
+
 
 export default router;

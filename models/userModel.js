@@ -21,6 +21,7 @@ const userSchema = new mongoose.Schema({
     select: false,
   },
   phone: String,
+  volunteerName: String,
   accountVerified: { type: Boolean, default: false },
   verificationCode: Number,
   verificationCodeExpire: Date,
@@ -31,7 +32,7 @@ const userSchema = new mongoose.Schema({
     default: Date.now,
   },
   temp: { type: String, unique: true },  
-  tempRegNumber: { type: String } // <-- Added registration number
+  tempRegNumber: { type: String, unique: true },
 });
 
 
