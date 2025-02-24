@@ -4,25 +4,71 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
 const volunteerSchema = new mongoose.Schema({
-  name: String,
-  guardian: String,
-  address: String,
-  dob: Date,
-  gender: String,
-  image: String,
-  undertaking: String,
-  policeVerification: String,
-  bankDocument: String,
-  educationQualification: String,
-  email: String,
+  name: {
+    type: String,
+    required: [true, "Name is required"]
+  },
+  guardian: {
+    type: String,
+    required: [true, "Guardian name is required"]
+  },
+  address: {
+    type: String,
+    required: [true, "Address is required"]
+  },
+  dob: {
+    type: Date,
+    required: [true, "Date of birth is required"]
+  },
+  gender: {
+    type: String,
+    required: [true, "Gender is required"],
+    enum: ["Male", "Female", "Other"]
+  },
+  image: {
+    type: String,
+    required: [true, "Profile image is required"]
+  },
+  undertaking: {
+    type: String,
+    required: [true, "Undertaking document is required"]
+  },
+  policeVerification: {
+    type: String,
+    required: [true, "Police verification is required"]
+  },
+  bankDocument: {
+    type: String,
+    required: [true, "Bank document is required"]
+  },
+  educationQualification: {
+    type: String,
+    required: [true, "Education qualification document is required"]
+  },
+  email: {
+    type: String,
+    required: [true, "Email is required"],
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
+  },
   password: {
     type: String,
-    minLength: [8, "Password must have at least 8 characters."],
-    maxLength: [32, "Password cannot have more than 32 characters."],
-    select: false,
+    required: [true, "Password is required"],
+    minLength: [8, "Password must have at least 8 characters"],
+    maxLength: [32, "Password cannot have more than 32 characters"],
+    select: false
   },
-  phone: String,
-  accountVerified: { type: Boolean, default: false },
+  phone: {
+    type: String,
+    required: [true, "Phone number is required"],
+    unique: true
+  },
+  accountVerified: {
+    type: Boolean,
+    default: false
+  },
   verificationCode: Number,
   verificationCodeExpire: Date,
   resetPasswordToken: String,
@@ -31,8 +77,14 @@ const volunteerSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-  temp: { type: String, unique: true },  
-  tempRegNumber: { type: String ,unique:true}
+  temp: {
+    type: String,
+    unique: true
+  },
+  tempRegNumber: {
+    type: String,
+    unique: true
+  }
 });
 
 volunteerSchema.pre("save", async function (next) {

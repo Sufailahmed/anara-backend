@@ -6,6 +6,7 @@ import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
 import { volunteerTempReg } from "../models/tempRegModel.js";
 import nodemailer from 'nodemailer'
+import { User } from "../models/userModel.js";
 
 const otpStore = new Map();
 
@@ -134,6 +135,8 @@ export const generateTemporaryRegNumber = catchAsyncError(async (req, res, next)
     const tempRegNumber = `T/ASF/FE/${String(count + 1).padStart(5, '0')}`;
     // Save to DB
     tempReg = await volunteerTempReg.create({ email, tempRegNumber });
+  } else {
+    return next(new ErrorHandler("Temp not found.", 400));
   }
 
   const message = `
@@ -186,7 +189,6 @@ export const register = catchAsyncError(async (req, res, next) => {
 
     // Fetch tempRegNumber from DB
     const tempRegData = await volunteerTempReg.findOne({ email });
-
     if (!tempRegData) {
       return next(new ErrorHandler("Temporary Registration Number not found.", 400));
     }
@@ -210,7 +212,7 @@ export const register = catchAsyncError(async (req, res, next) => {
       educationQualification: req.files.educationQualification[0].path,
       bankDocument: req.files.bankDocument[0].path,
       accountVerified: true,
-      tempRegNumber: tempRegData.tempRegNumber, // Assign from DB
+      tempRegNumber: tempRegData.tempRegNumber, 
     });
 
     // here the approve mail go to the Volunteer
@@ -438,6 +440,45 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
   volunteer.resetPasswordExpire = undefined;
   await volunteer.save();
   sendToken(volunteer, 200, "Reset Password Successfully.", res);
+});
+
+
+
+
+
+//Count of users under volunteer
+export const getUserCount = catchAsyncError(async (req, res, next) => {
+  // First check if volunteer exists in request
+  if (!req.volunteer) {
+      return next(new ErrorHandler("Volunteer not found in request. Are you logged in?", 401));
+  }
+
+  const volunteerName = req.volunteer.name; 
+  try {
+      // Count users where volunteerName matches the logged-in volunteer's name
+      const userCount = await User.countDocuments({ volunteerName: volunteerName });
+      // Get user details
+      const users = await User.find({ volunteerName: volunteerName })
+          .select('name email createdAt accountVerified')
+          .sort({ createdAt: -1 });
+      // Calculate statistics
+      const verifiedUsers = users.filter(user => user.accountVerified).length;
+      const unverifiedUsers = users.filter(user => !user.accountVerified).length;
+
+      res.status(200).json({
+          success: true,
+          data: {
+              totalUsers: userCount,
+              verifiedUsers,
+              unverifiedUsers,
+              recentUsers: users.slice(0, 5), 
+          },
+          message: "User count retrieved successfully",
+      });
+
+  } catch (error) {
+      return next(new ErrorHandler(`Error retrieving user count: ${error.message}`, 500));
+  }
 });
 
 

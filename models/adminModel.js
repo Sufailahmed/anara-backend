@@ -4,19 +4,35 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
 const adminSchema = new mongoose.Schema({
-  name: String,
-  email: String,
+  name: {
+    type: String,
+    required: [true, "Name is required"]
+  },
+  email: {
+    type: String,
+    required: [true, "Email is required"],
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
+  },
   password: {
     type: String,
-    minLength: [8, "Password must have at least 8 characters."],
-    maxLength: [32, "Password cannot have more than 32 characters."],
-    select: false,
+    required: [true, "Password is required"],
+    minLength: [8, "Password must have at least 8 characters"],
+    maxLength: [32, "Password cannot have more than 32 characters"],
+    select: false
   },
-  phone: String,
+  phone: {
+    type: String,
+    required: [true, "Phone number is required"],
+    unique: true
+  },
   verificationCode: Number,
   verificationCodeExpire: Date,
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+
   createdAt: {
     type: Date,
     default: Date.now,
@@ -33,23 +49,6 @@ adminSchema.pre("save", async function (next) {
 adminSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
-
-// userSchema.methods.generateVerificationCode = function () {
-//   function generateRandomFiveDigitNumber() {
-//     const firstDigit = Math.floor(Math.random() * 9) + 1;
-//     const remainingDigits = Math.floor(Math.random() * 10000)
-//       .toString()
-//       .padStart(4, 0);
-
-//     return parseInt(firstDigit + remainingDigits);
-//   }
-//   const verificationCode = generateRandomFiveDigitNumber();
-//   this.verificationCode = verificationCode;
-//   this.verificationCodeExpire = Date.now() + 10 * 60 * 1000;
-
-//   return verificationCode;
-// };
-
 
 adminSchema.methods.generateToken = function () {
   return jwt.sign({ id: this._id }, process.env.ADMIN_SECRET_KEY

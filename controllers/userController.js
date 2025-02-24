@@ -230,7 +230,7 @@ export const register = catchAsyncError(async (req, res, next) => {
       policeVerification: req.files.policeVerification[0].path,
       educationQualification: req.files.educationQualification[0].path,
       accountVerified: true,
-      tempRegNumber: tempRegData.tempRegNumber, // Assign from DB
+      tempRegNumber: tempRegData.tempRegNumber, 
     });
 
     // Send registration confirmation email to the user
@@ -245,21 +245,25 @@ export const register = catchAsyncError(async (req, res, next) => {
       const mailOptions = {
         from: "hasanulbanna2255@gmail.com",
         to: email,
-        subject: "Registration Successful - Welcome to Anara",
+        subject: "Welcome to Anara - Your Registration is Successful!",
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-            <h2 style="color: #4caf50;">🎉 Congratulations, ${name}!</h2>
-            <p>You have successfully registered with Anara. Below are your registration details:</p>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Temporary Registration Number:</strong> ${tempRegData.tempRegNumber}</p>
-            <p>We will notify you once your registration is approved.</p>
-            <p>Thank you for joining us!</p>
+            <h2 style="color: #007bff; text-align: center;">🌟 Welcome to Anara, ${name}! 🌟</h2>
+            <p style="font-size: 16px;">Dear ${name},</p>
+            <p>We are delighted to have you on board! Your registration with Anara has been successfully completed. Below are your details:</p>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
+              <p><strong>Name:</strong> ${name}</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Temporary Registration Number:</strong> ${tempRegData.tempRegNumber}</p>
+            </div>
+            <p>Our team is currently reviewing your registration, and we will notify you once it is approved.</p>
+            <p>If you have any questions, feel free to reach out to our support team.</p>
+            <p>Thank you for choosing Anara! We look forward to having you as part of our community.</p>
             <hr style="border: none; border-top: 1px solid #ddd;">
             <p style="text-align: center; font-size: 12px; color: #888;">This is an automated email, please do not reply.</p>
           </div>
         `,
-      };
+      };      
       await transporter.sendMail(mailOptions);
       console.log("Registration confirmation email sent to:", email);
     } catch {

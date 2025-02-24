@@ -4,10 +4,10 @@ import { Admin } from "../models/adminModel.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { adminToken } from "../utils/adminToken.js";
 import crypto from "crypto";
-import { Volunteer } from "../models/volunteerModel.js";
 import { User } from "../models/userModel.js";
+import { Volunteer } from "../models/volunteerModel.js";
 
-
+//Register
 export const register = catchAsyncError(async (req, res, next) => {
   const { name, email, phone, password } = req.body;
   console.log("Request received:", req.body);
@@ -55,6 +55,11 @@ export const register = catchAsyncError(async (req, res, next) => {
   });
 });
 
+
+
+
+
+//Login
 export const login = catchAsyncError(async (req, res, next) => {
   console.log(req.body);
 
@@ -62,17 +67,25 @@ export const login = catchAsyncError(async (req, res, next) => {
   if (!email || !password) {
     return next(new ErrorHandler("Email and password are required.", 400));
   }
+
   const admin = await Admin.findOne({ email }).select("+password");
   if (!admin) {
     return next(new ErrorHandler("Invalid email or password.", 400));
   }
+
   const isPasswordMatched = await admin.comparePassword(password);
   if (!isPasswordMatched) {
     return next(new ErrorHandler("Invalid email or password.", 400));
   }
+
   adminToken(admin, 200, "admin logged in successfully.", res);
 });
 
+
+
+
+
+//Logout
 export const logout = catchAsyncError(async (req, res, next) => {
   res
     .status(200)
@@ -86,6 +99,10 @@ export const logout = catchAsyncError(async (req, res, next) => {
     });
 });
 
+
+
+
+//GetAdmin
 export const getadmin = catchAsyncError(async (req, res, next) => {
   const admin = req.admin;
   res.status(200).json({
@@ -94,6 +111,12 @@ export const getadmin = catchAsyncError(async (req, res, next) => {
   });
 });
 
+
+
+
+
+
+//Forgot Password
 export const forgotPassword = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.findOne({
     email: req.body.email,
@@ -133,6 +156,11 @@ export const forgotPassword = catchAsyncError(async (req, res, next) => {
   }
 });
 
+
+
+
+
+//Reset Password
 export const resetPassword = catchAsyncError(async (req, res, next) => {
   const { token } = req.params;
 
@@ -176,10 +204,32 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
   adminToken(admin, 200, "Password reset successfully.", res);
 });
 
-export const getAllVolunteersAndUsers = catchAsyncError(async (req, res, next) => {
+
+
+
+
+//Get all volunteers in Admin Dashboard
+export const getAllVolunteers = catchAsyncError(async (req, res, next) => {
   try {
     // Fetch all volunteers
     const volunteers = await Volunteer.find({});
+
+    // Combine the results into a single response
+    res.status(200).json({
+      success: true,
+      volunteers,
+    });
+  } catch (error) {
+    return next(new ErrorHandler("Failed to fetch volunteers.", 500));
+  }
+});
+
+
+
+
+//Get all users in Admin Dashboard
+export const getAllUsers = catchAsyncError(async (req, res, next) => {
+  try {
 
     // Fetch all users
     const users = await User.find({});
@@ -187,10 +237,32 @@ export const getAllVolunteersAndUsers = catchAsyncError(async (req, res, next) =
     // Combine the results into a single response
     res.status(200).json({
       success: true,
-      volunteers,
       users,
     });
   } catch (error) {
     return next(new ErrorHandler("Failed to fetch volunteers and users.", 500));
+  }
+});
+
+
+
+
+// Count of users and volunteers
+export const CountVolunteersAndUsers = catchAsyncError(async (req, res, next) => {
+  try {
+    // Get count of volunteers
+    const volunteerCount = await Volunteer.countDocuments();
+
+    // Get count of users
+    const userCount = await User.countDocuments();
+
+    // Return the counts
+    res.status(200).json({
+      success: true,
+      volunteerCount,
+      userCount,
+    });
+  } catch (error) {
+    return next(new ErrorHandler("Failed to fetch volunteer and user counts.", 500));
   }
 });
