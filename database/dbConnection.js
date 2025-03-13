@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 export const connection = () => {
   mongoose
-    .connect(process.env.MONGO_URL, {
+    .connect(process.env.MONGO_URI, {
       dbName: "MERN_AUTHENTICATION",
     })
     .then(() => {
