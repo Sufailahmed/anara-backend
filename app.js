@@ -21,22 +21,14 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      const allowedOrigins = [
-        process.env.FRONTEND_URL,  
-        "http://localhost:3000",
-        "https://digi-colab-roan.vercel.app/"
-      ];
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: "https://digi-colab-roan.vercel.app", // Your frontend URL
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
+    credentials: true, // Allow cookies and authorization headers
   })
 );
+
+// Optional: Handle preflight requests manually
+app.options("*", cors());
 
 
 app.use(cookieParser());
