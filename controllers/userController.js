@@ -4,7 +4,6 @@ import { User } from "../models/userModel.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
-import { userTempReg } from "../models/tempRegModel.js";
 import nodemailer from 'nodemailer'
 import { Volunteer } from "../models/volunteerModel.js";
 
@@ -101,7 +100,7 @@ export const verifyEmailOTP = catchAsyncError(async (req, res, next) => {
   otpStore.set(email, { verified: true });
   res.status(200).json({
     success: true,
-    message: "Email verified successfully. You can now generate a Temporary Registration Number.",
+    message: "Email verified successfully.",
   });
 });
 
@@ -110,58 +109,58 @@ export const verifyEmailOTP = catchAsyncError(async (req, res, next) => {
 
 
 //Generate temporary register number
-export const generateTemporaryRegNumber = catchAsyncError(async (req, res, next) => {
-  const { email } = req.body;
+// export const generateTemporaryRegNumber = catchAsyncError(async (req, res, next) => {
+//   const { email } = req.body;
 
-  if (!email) {
-    return next(new ErrorHandler("Email is required.", 400));
-  }
+//   if (!email) {
+//     return next(new ErrorHandler("Email is required.", 400));
+//   }
 
-  // Check if the email has been verified
-  const storedOtpData = otpStore.get(email);
+//   // Check if the email has been verified
+//   const storedOtpData = otpStore.get(email);
 
-  if (!storedOtpData || !storedOtpData.verified) {
-    return next(new ErrorHandler("Email not verified. Please verify your email first.", 400));
-  }
+//   if (!storedOtpData || !storedOtpData.verified) {
+//     return next(new ErrorHandler("Email not verified. Please verify your email first.", 400));
+//   }
 
-  // Check if tempRegNumber already exists for the email
-  let tempReg = await userTempReg.findOne({ email });
+//   // Check if tempRegNumber already exists for the email
+//   let tempReg = await userTempReg.findOne({ email });
 
-  if (!tempReg) {
-    // Generate new unique Temporary Registration Number
-    const count = await userTempReg.countDocuments(); // Get count of existing registrations
-    const tempRegNumber = `T/ASF/CANDIDATE/${String(count + 1).padStart(5, '0')}`;
+//   if (!tempReg) {
+//     // Generate new unique Temporary Registration Number
+//     const count = await userTempReg.countDocuments(); // Get count of existing registrations
+//     const tempRegNumber = `T/ASF/CANDIDATE/${String(count + 1).padStart(5, '0')}`;
 
-    // Save to DB
-    tempReg = await userTempReg.create({ email, tempRegNumber });
-  }
+//     // Save to DB
+//     tempReg = await userTempReg.create({ email, tempRegNumber });
+//   }
 
-  const message = `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-      <h2 style="color: #333;">Temporary Registration Number</h2>
-      <p>Dear Candidate,</p>
-      <p>Your Temporary Registration Number is:</p>
-      <h2 style="color: #4caf50; text-align: center;">${tempReg.tempRegNumber}</h2>
-      <p>Please use this temporary registration number to proceed with further verification.</p>
-      <p>Thank you.</p>
-    </div>
-  `;
+//   const message = `
+//     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
+//       <h2 style="color: #333;">Temporary Registration Number</h2>
+//       <p>Dear Candidate,</p>
+//       <p>Your Temporary Registration Number is:</p>
+//       <h2 style="color: #4caf50; text-align: center;">${tempReg.tempRegNumber}</h2>
+//       <p>Please use this temporary registration number to proceed with further verification.</p>
+//       <p>Thank you.</p>
+//     </div>
+//   `;
 
-  try {
-    await sendEmail({
-      email,
-      subject: "Your Temporary Registration Number",
-      message,
-    });
-  } catch (error) {
-    return next(new ErrorHandler("Failed to send Temporary Registration Number.", 500));
-  }
-  res.status(200).json({
-    success: true,
-    message: "Temporary Registration Number assigned successfully.",
-    tempRegNumber: tempReg.tempRegNumber,
-  });
-});
+//   try {
+//     await sendEmail({
+//       email,
+//       subject: "Your Temporary Registration Number",
+//       message,
+//     });
+//   } catch (error) {
+//     return next(new ErrorHandler("Failed to send Temporary Registration Number.", 500));
+//   }
+//   res.status(200).json({
+//     success: true,
+//     message: "Temporary Registration Number assigned successfully.",
+//     tempRegNumber: tempReg.tempRegNumber,
+//   });
+// });
 
 
 
@@ -170,10 +169,10 @@ export const generateTemporaryRegNumber = catchAsyncError(async (req, res, next)
 //Get all volunteers for the dropdown
 export const getVolunteersDropdown = catchAsyncError(async (req, res, next) => {
   try {
-    const volunteers = await Volunteer.find({}, "name"); 
+    const volunteers = await Volunteer.find({}, "name");
     if (!volunteers || volunteers.length === 0) {
       return res.status(404).json({
-        success: false, 
+        success: false,
         message: "No volunteers found.",
       });
     }
@@ -189,49 +188,68 @@ export const getVolunteersDropdown = catchAsyncError(async (req, res, next) => {
 
 
 
+
 //Register
 export const register = catchAsyncError(async (req, res, next) => {
-  const { name, email, phone, password, guardian, address, dob, gender, volunteerName } = req.body;
+  const { 
+    name, email, phone, password, guardian, address, currentAddress, dob, gender, 
+    bankAccNumber, bankName, ifsc, volunteerName, pwdCategory, entrepreneurshipInterest 
+  } = req.body;
 
   try {
-    if (!name || !email || !phone || !password || !guardian || !address || !dob || !gender || !volunteerName) {
+    if (!name || !email || !phone || !password || !guardian || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !volunteerName || pwdCategory === undefined || entrepreneurshipInterest === undefined) {
       return next(new ErrorHandler("All fields are required.", 400));
     }
 
-    if (!req.files || !req.files.image || !req.files.undertaking || !req.files.policeVerification || !req.files.educationQualification) {
+    if (!req.files || !req.files.image || !req.files.undertaking || !req.files.policeVerification || !req.files.educationQualification || !req.files.bankPassbook) {
       return next(new ErrorHandler("All required documents must be uploaded.", 400));
     }
 
-    const emailExists = await User.findOne({ email });
-    const phoneExists = await User.findOne({ phone }); 
-
-    // Fetch tempRegNumber from DB
-    const tempRegData = await userTempReg.findOne({ email });
-    if (!tempRegData) {
-      return next(new ErrorHandler("Temporary Registration Number not found.", 400));
+    if (pwdCategory === "Yes" && !req.files.pwdCertificate) {
+      return next(new ErrorHandler("PWD Certificate is required.", 400));
     }
+    
+    if (entrepreneurshipInterest === "Yes" && !req.files.bplCertificate) {
+      return next(new ErrorHandler("BPL/marginalized category certificate is required.", 400));
+    }
+
+    const emailExists = await User.findOne({ email });
+    const phoneExists = await User.findOne({ phone });
 
     if (emailExists || phoneExists) {
       return next(new ErrorHandler("Email or phone is already registered.", 400));
     }
 
+    // ✅ Ensure regNumber is generated before creating the user
+    const count = await User.countDocuments();
+    const regNumber = `ASF/CANDIDATE/${String(count + 1).padStart(5, '0')}`;
+
+    // ✅ Debugging: Check if regNumber is null
+    console.log("Generated regNumber:", regNumber);
+
+    if (!regNumber) {
+      return next(new ErrorHandler("Failed to generate registration number.", 500));
+    }
+    const validBankAccNumber = bankAccNumber && bankAccNumber.trim() !== "" ? bankAccNumber : "Not Provided";
+
+ 
+    // ✅ Now creating user with permanent regNumber
     const user = await User.create({
-      name,
-      email,
-      phone,
-      password,
-      guardian,
-      address,
-      dob,
-      gender,
-      volunteerName,
+      name, email, phone, password, guardian, address, currentAddress, dob, gender, 
+      bankAccNumber:validBankAccNumber, bankName, ifsc, volunteerName, 
+      pwdCategory, entrepreneurshipInterest,
       image: req.files.image[0].path,
       undertaking: req.files.undertaking[0].path,
       policeVerification: req.files.policeVerification[0].path,
       educationQualification: req.files.educationQualification[0].path,
+      bankPassbook: req.files.bankPassbook[0].path,
+      pwdCertificate: pwdCategory === "Yes" ? req.files.pwdCertificate[0].path : null,
+      bplCertificate: entrepreneurshipInterest === "Yes" ? req.files.bplCertificate[0].path : null,
       accountVerified: true,
-      tempRegNumber: tempRegData.tempRegNumber, 
+      regNumber, // ✅ Assign regNumber before saving
     });
+
+    console.log("User created with regNumber:", user.regNumber);
 
     // Send registration confirmation email to the user
     try {
@@ -242,6 +260,7 @@ export const register = catchAsyncError(async (req, res, next) => {
           pass: "wflv nsjo ofba rvov",
         },
       });
+
       const mailOptions = {
         from: "hasanulbanna2255@gmail.com",
         to: email,
@@ -254,55 +273,22 @@ export const register = catchAsyncError(async (req, res, next) => {
             <div style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
               <p><strong>Name:</strong> ${name}</p>
               <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Temporary Registration Number:</strong> ${tempRegData.tempRegNumber}</p>
+              <p><strong>Registration Number:</strong> ${regNumber}</p>
             </div>
-            <p>Our team is currently reviewing your registration, and we will notify you once it is approved.</p>
             <p>If you have any questions, feel free to reach out to our support team.</p>
             <p>Thank you for choosing Anara! We look forward to having you as part of our community.</p>
             <hr style="border: none; border-top: 1px solid #ddd;">
             <p style="text-align: center; font-size: 12px; color: #888;">This is an automated email, please do not reply.</p>
           </div>
         `,
-      };      
+      };
+
       await transporter.sendMail(mailOptions);
       console.log("Registration confirmation email sent to:", email);
-    } catch {
+    } catch (error) {
       console.log("Error sending registration email:", error);
     }
-
-    // here the approve mail go to the user
-    try {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: "hasanulbanna2255@gmail.com",
-          pass: "wflv nsjo ofba rvov",
-        },
-      });
-
-      // Approval links
-      const yesLink = `http://localhost:4000/api/v1/user/approve?email=${encodeURIComponent(email)}&approved=true`;
-      const noLink = `http://localhost:4000/api/v1/user/approve?email=${encodeURIComponent(email)}&approved=false`;
-
-      const mailOptions = {
-        from: "hasanulbanna2255@gmail.com",
-        to: "meghasajup94@gmail.com",
-        subject: "Action Required: Account Approval",
-        html: `
-      <h3>Dear Officer,</h3>
-      <p>A new registration has been completed in our system, and we require your confirmation for account activation.</p>
-      <p>Please review the request and choose one of the following actions:</p>
-      <a href="${yesLink}" style="padding:10px; background:green; color:white; text-decoration:none; border-radius:5px;">Approve</a>
-      <a href="${noLink}" style="padding:10px; background:red; color:white; text-decoration:none; border-radius:5px; margin-left:10px;">Reject</a>
-      <p>Thank you for your prompt attention.</p>
-      <p>Best regards,<br>Anara Team</p>
-    `,
-      };
-      await transporter.sendMail(mailOptions);
-      console.log("Approval email sent to:", email);
-    } catch (error) {
-      console.log("Error sending email:", error);
-    }
+  
     res.status(201).json({
       success: true,
       message: "User registered successfully.",
@@ -310,7 +296,7 @@ export const register = catchAsyncError(async (req, res, next) => {
     });
   } catch (error) {
     console.log(error);
-    return next(new ErrorHandler("Internal Server Error", 500));
+    return next(new ErrorHandler(error, 500));
   }
 });
 
@@ -318,67 +304,70 @@ export const register = catchAsyncError(async (req, res, next) => {
 
 
 
+
+
+
 //Approve email
-export const approveEmail = async (req, res) => {
-  try {
-    const { email, approved } = req.query;
-    console.log(`User approval for ${email}: ${approved}`);
+// export const approveEmail = async (req, res) => {
+//   try {
+//     const { email, approved } = req.query;
+//     console.log(`User approval for ${email}: ${approved}`);
 
-    if (approved === "true") {
-      const tempRegEntry = await User.findOne({ email });
+//     if (approved === "true") {
+//       const tempRegEntry = await User.findOne({ email });
 
-      if (!tempRegEntry) {
-        return res.status(404).json({ success: false, message: "Temporary Registration Number not found." });
-      }
+//       if (!tempRegEntry) {
+//         return res.status(404).json({ success: false, message: "Temporary Registration Number not found." });
+//       }
 
-      // Remove 'T/' from the beginning and keep the rest the same
-      const newRegNumber = tempRegEntry.tempRegNumber.replace(/^T\//, "");
+//       // Remove 'T/' from the beginning and keep the rest the same
+//       const newRegNumber = tempRegEntry.tempRegNumber.replace(/^T\//, "");
 
-      // Update the database with the new Registration Number
-      tempRegEntry.tempRegNumber = newRegNumber;
-      await tempRegEntry.save();
-      try {
-        const transporter = nodemailer.createTransport({
-          service: "gmail",
-          auth: {
-            user: "hasanulbanna2255@gmail.com",
-            pass: "wflv nsjo ofba rvov",
-          },
-        });
-        const mailOptions = {
-          from: "hasanulbanna2255@gmail.com",
-          to: email,
-          subject: "New Registration Number",
-          html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-        <div style="background-color: #4caf50; padding: 15px; text-align: center; border-top-left-radius: 10px; border-top-right-radius: 10px;">
-          <h2 style="color: #fff; margin: 0;">Welcome!</h2>
-        </div>
-        <div style="padding: 20px; text-align: center;">
-          <p style="font-size: 18px; color: #333;">🎉 Congratulations!</p>
-          <p style="font-size: 16px; color: #555;">Your new registration number is:</p>
-          <h2 style="color: #4caf50; font-size: 28px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 5px;">
-            ${newRegNumber}
-          </h2>
-          <p style="font-size: 16px; color: #555;">Keep this number safe for future reference.</p>
-        </div>
-        <hr style="border: none; border-top: 1px solid #ddd;">
-      </div>
-    `,
-        };
-        await transporter.sendMail(mailOptions);
-        console.log("New regNumber send to:", email);
-      } catch (error) {
-        console.log("Error sending email:", error);
-      }
-      console.log(`Updated Registration Number: ${newRegNumber}`);
-    }
-    res.send(`<h1>Done ✅ </h1>`);
-  } catch (error) {
-    console.error("Error approving email:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
+//       // Update the database with the new Registration Number
+//       tempRegEntry.tempRegNumber = newRegNumber;
+//       await tempRegEntry.save();
+//       try {
+//         const transporter = nodemailer.createTransport({
+//           service: "gmail",
+//           auth: {
+//             user: "hasanulbanna2255@gmail.com",
+//             pass: "wflv nsjo ofba rvov",
+//           },
+//         });
+//         const mailOptions = {
+//           from: "hasanulbanna2255@gmail.com",
+//           to: email,
+//           subject: "New Registration Number",
+//           html: `
+//       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
+//         <div style="background-color: #4caf50; padding: 15px; text-align: center; border-top-left-radius: 10px; border-top-right-radius: 10px;">
+//           <h2 style="color: #fff; margin: 0;">Welcome!</h2>
+//         </div>
+//         <div style="padding: 20px; text-align: center;">
+//           <p style="font-size: 18px; color: #333;">🎉 Congratulations!</p>
+//           <p style="font-size: 16px; color: #555;">Your new registration number is:</p>
+//           <h2 style="color: #4caf50; font-size: 28px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 5px;">
+//             ${newRegNumber}
+//           </h2>
+//           <p style="font-size: 16px; color: #555;">Keep this number safe for future reference.</p>
+//         </div>
+//         <hr style="border: none; border-top: 1px solid #ddd;">
+//       </div>
+//     `,
+//         };
+//         await transporter.sendMail(mailOptions);
+//         console.log("New regNumber send to:", email);
+//       } catch (error) {
+//         console.log("Error sending email:", error);
+//       }
+//       console.log(`Updated Registration Number: ${newRegNumber}`);
+//     }
+//     res.send(`<h1>Done ✅ </h1>`);
+//   } catch (error) {
+//     console.error("Error approving email:", error);
+//     res.status(500).json({ success: false, message: "Internal Server Error" });
+//   }
+// };
 
 
 

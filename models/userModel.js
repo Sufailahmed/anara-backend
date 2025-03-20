@@ -16,6 +16,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, "Address is required"]
   },
+  currentAddress: {
+    type: String,
+    required: [true, "Current Address is required"]
+  },
   dob: {
     type: Date,
     required: [true, "Date of birth is required"]
@@ -61,10 +65,44 @@ const userSchema = new mongoose.Schema({
     required: [true, "Phone number is required"],
     unique: true
   },
+  bankAccNumber: {
+    type: String,
+    required: [true, "Bank account number is required"],
+  },
+  bankName: {
+    type: String,
+    required: [true, "Bank name is required"],
+  },
+  ifsc: {
+    type: String,
+    required: [true, "IFSC code is required"],
+  },
+  bankPassbook: {
+    type: String,
+    required: [true, "Bank passbook or bank statement document is required"],
+  },
   volunteerName: {
     type: String,
     required: [true, "Volunteer name is required"],
     ref: 'Volunteer'
+  },
+  pwdCategory: {
+    type: String,
+    required: true,
+    enum: ["Yes", "No"],
+  },
+  pwdCertificate: {
+    type: String,
+    default: null,
+  },
+  entrepreneurshipInterest: {
+    type: String,
+    required: true,
+    enum: ["Yes", "No"],
+  },
+  bplCertificate: {
+    type: String,
+    default: null,
   },
   accountVerified: {
     type: Boolean,
@@ -80,11 +118,12 @@ const userSchema = new mongoose.Schema({
   },
   temp: {
     type: String,
-    unique: true
+    
   },
-  tempRegNumber: {
+  regNumber: {
     type: String,
-    unique: true
+    unique: true,
+    required:true
   }
 });
 

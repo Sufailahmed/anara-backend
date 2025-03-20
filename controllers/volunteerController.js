@@ -4,7 +4,6 @@ import { Volunteer } from "../models/volunteerModel.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
-import { volunteerTempReg } from "../models/tempRegModel.js";
 import nodemailer from 'nodemailer'
 import { User } from "../models/userModel.js";
 
@@ -112,60 +111,60 @@ export const verifyEmailOTP = catchAsyncError(async (req, res, next) => {
 
 
 //Generate temporary register number
-export const generateTemporaryRegNumber = catchAsyncError(async (req, res, next) => {
-  const { email } = req.body;
+// export const generateTemporaryRegNumber = catchAsyncError(async (req, res, next) => {
+//   const { email } = req.body;
 
-  if (!email) {
-    return next(new ErrorHandler("Email is required.", 400));
-  }
+//   if (!email) {
+//     return next(new ErrorHandler("Email is required.", 400));
+//   }
 
-  // Check if the email has been verified
-  const storedOtpData = otpStore.get(email);
+//   // Check if the email has been verified
+//   const storedOtpData = otpStore.get(email);
 
-  if (!storedOtpData || !storedOtpData.verified) {
-    return next(new ErrorHandler("Email not verified. Please verify your email first.", 400));
-  }
+//   if (!storedOtpData || !storedOtpData.verified) {
+//     return next(new ErrorHandler("Email not verified. Please verify your email first.", 400));
+//   }
 
-  // Check if tempRegNumber already exists for the email
-  let tempReg = await volunteerTempReg.findOne({ email });
+//   // Check if tempRegNumber already exists for the email
+//   let tempReg = await volunteerTempReg.findOne({ email });
 
-  if (!tempReg) {
-    // Generate new unique Temporary Registration Number
-    const count = await volunteerTempReg.countDocuments(); // Get count of existing registrations
-    const tempRegNumber = `T/ASF/FE/${String(count + 1).padStart(5, '0')}`;
-    // Save to DB
-    tempReg = await volunteerTempReg.create({ email, tempRegNumber });
-  } else {
-    return next(new ErrorHandler("Temp not found.", 400));
-  }
+//   if (!tempReg) {
+//     // Generate new unique Temporary Registration Number
+//     const count = await volunteerTempReg.countDocuments(); // Get count of existing registrations
+//     const tempRegNumber = `T/ASF/FE/${String(count + 1).padStart(5, '0')}`;
+//     // Save to DB
+//     tempReg = await volunteerTempReg.create({ email, tempRegNumber });
+//   } else {
+//     return next(new ErrorHandler("Temp not found.", 400));
+//   }
 
-  const message = `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-      <h2 style="color: #333;">Temporary Registration Number</h2>
-      <p>Dear Volunteer,</p>
-      <p>Your Temporary Registration Number is:</p>
-      <h2 style="color: #4caf50; text-align: center;">${tempReg.tempRegNumber}</h2>
-      <p>Please use this temporary registration number to proceed with further verification.</p>
-      <p>Thank you.</p>
-    </div>
-  `;
+//   const message = `
+//     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
+//       <h2 style="color: #333;">Temporary Registration Number</h2>
+//       <p>Dear Volunteer,</p>
+//       <p>Your Temporary Registration Number is:</p>
+//       <h2 style="color: #4caf50; text-align: center;">${tempReg.tempRegNumber}</h2>
+//       <p>Please use this temporary registration number to proceed with further verification.</p>
+//       <p>Thank you.</p>
+//     </div>
+//   `;
 
-  try {
-    await sendEmail({
-      email,
-      subject: "Your Temporary Registration Number",
-      message,
-    });
-  } catch (error) {
-    return next(new ErrorHandler("Failed to send Temporary Registration Number.", 500));
-  }
+//   try {
+//     await sendEmail({
+//       email,
+//       subject: "Your Temporary Registration Number",
+//       message,
+//     });
+//   } catch (error) {
+//     return next(new ErrorHandler("Failed to send Temporary Registration Number.", 500));
+//   }
 
-  res.status(200).json({
-    success: true,
-    message: "Temporary Registration Number assigned successfully.",
-    tempRegNumber: tempReg.tempRegNumber,
-  });
-});
+//   res.status(200).json({
+//     success: true,
+//     message: "Temporary Registration Number assigned successfully.",
+//     tempRegNumber: tempReg.tempRegNumber,
+//   });
+// });
 
 
 
@@ -173,49 +172,86 @@ export const generateTemporaryRegNumber = catchAsyncError(async (req, res, next)
 
 //Register
 export const register = catchAsyncError(async (req, res, next) => {
-  const { name, email, phone, password, guardian, address, dob, gender } = req.body;
+  const {
+    name,
+    email,
+    phone,
+    password,
+    guardian,
+    address,
+    currentAddress,
+    dob,
+    gender,
+    bankAccNumber,
+    bankName,
+    ifsc,
+    educationDegree,
+    educationYearOfCompletion,
+    employmentStatus,
+    monthlyIncomeRange
+  } = req.body;
 
   try {
-    if (!name || !email || !phone || !password || !guardian || !address || !dob || !gender) {
+    if (!name || !email || !phone || !password || !guardian || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !educationDegree || !educationYearOfCompletion || !employmentStatus) {
       return next(new ErrorHandler("All fields are required.", 400));
     }
 
-    if (!req.files || !req.files.image || !req.files.undertaking || !req.files.policeVerification || !req.files.educationQualification || !req.files.bankDocument) {
+    // Check if monthly income range is provided when employment status is "Employed"
+    if (employmentStatus === "Employed" && !monthlyIncomeRange) {
+      return next(new ErrorHandler("Monthly income range is required for employed volunteers.", 400));
+    }
+
+    if (!req.files || !req.files.image || !req.files.undertaking || !req.files.policeVerification || !req.files.educationCertificate || !req.files.bankDocument) {
       return next(new ErrorHandler("All required documents must be uploaded.", 400));
     }
 
     const emailExists = await Volunteer.findOne({ email });
     const phoneExists = await Volunteer.findOne({ phone });
 
-    // Fetch tempRegNumber from DB
-    const tempRegData = await volunteerTempReg.findOne({ email });
-    if (!tempRegData) {
-      return next(new ErrorHandler("Temporary Registration Number not found.", 400));
-    }
-
     if (emailExists || phoneExists) {
       return next(new ErrorHandler("Email or phone is already registered.", 400));
     }
 
-    const volunteer = await Volunteer.create({
+    const count = await Volunteer.countDocuments();
+    console.log(count);
+
+    const tempRegNumber = `ASF/FE/${String(count + 1).padStart(5, '0')}`;
+
+    const volunteerData = {
       name,
       email,
       phone,
       password,
       guardian,
       address,
+      currentAddress,
       dob,
       gender,
+      bankAccNumber,
+      bankName,
+      ifsc,
+      employmentStatus,
       image: req.files.image[0].path,
       undertaking: req.files.undertaking[0].path,
       policeVerification: req.files.policeVerification[0].path,
-      educationQualification: req.files.educationQualification[0].path,
+      educationQualification: {
+        degree: educationDegree,
+        yearOfCompletion: educationYearOfCompletion,
+        certificate: req.files.educationCertificate[0].path
+      },
       bankDocument: req.files.bankDocument[0].path,
       accountVerified: true,
-      tempRegNumber: tempRegData.tempRegNumber, 
-    });
+      tempRegNumber,
+    };
 
-    // here the approve mail go to the Volunteer
+    // Add monthlyIncomeRange only if employment status is "Employed"
+    if (employmentStatus === "Employed") {
+      volunteerData.monthlyIncomeRange = monthlyIncomeRange;
+    }
+
+    const volunteer = await Volunteer.create(volunteerData);
+
+    // Send welcome email to the volunteer
     try {
       const transporter = nodemailer.createTransport({
         service: "gmail",
@@ -225,29 +261,34 @@ export const register = catchAsyncError(async (req, res, next) => {
         },
       });
 
-      // Approval links
-      const yesLink = `http://localhost:4000/api/v1/volunteer/approve?email=${encodeURIComponent(email)}&approved=true`;
-      const noLink = `http://localhost:4000/api/v1/volunteer/approve?email=${encodeURIComponent(email)}&approved=false`;
-
       const mailOptions = {
         from: "hasanulbanna2255@gmail.com",
-        to: "meghasajup94@gmail.com",
-        subject: "Action Required: Account Approval",
+        to: email,
+        subject: "Welcome to Anara - Registration Successful",
         html: `
-      <h3>Dear Officer,</h3>
-      <p>A new volunteer registration has been completed in our system, and we require your confirmation for account activation.</p>
-      <p>Please review the request and choose one of the following actions:</p>
-      <a href="${yesLink}" style="padding:10px; background:green; color:white; text-decoration:none; border-radius:5px;">Approve</a>
-      <a href="${noLink}" style="padding:10px; background:red; color:white; text-decoration:none; border-radius:5px; margin-left:10px;">Reject</a>
-      <p>Thank you for your prompt attention.</p>
-      <p>Best regards,<br>Anara Team</p>
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
+        <h2 style="color: #007bff; text-align: center;">🌟 Welcome to Anara, ${name}! 🌟</h2>
+        <p style="font-size: 16px;">Dear Volunteer ${name},</p>
+        <p>We are delighted to have you on board! Your registration with Anara has been successfully completed. Below are your details:</p>
+        <div style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Registration Number:</strong> ${tempRegNumber}</p>
+        </div>
+        <p>If you have any questions, feel free to reach out to our support team.</p>
+        <p>Thank you for choosing Anara! We look forward to having you as part of our community.</p>
+        <hr style="border: none; border-top: 1px solid #ddd;">
+        <p style="text-align: center; font-size: 12px; color: #888;">This is an automated email, please do not reply.</p>
+      </div>
     `,
       };
+
       await transporter.sendMail(mailOptions);
-      console.log("Approval email sent to:", email);
+      console.log("Welcome email sent to:", email);
     } catch (error) {
-      console.log("Error sending email:", error);
+      console.log("Error sending welcome email:", error);
     }
+
     res.status(201).json({
       success: true,
       message: "Volunteer registered successfully.",
@@ -264,67 +305,67 @@ export const register = catchAsyncError(async (req, res, next) => {
 
 
 //Approve email
-export const approveEmail = async (req, res) => {
-  try {
-    const { email, approved } = req.query;
-    console.log(`Volunteer approval for ${email}: ${approved}`);
+// export const approveEmail = async (req, res) => {
+//   try {
+//     const { email, approved } = req.query;
+//     console.log(`Volunteer approval for ${email}: ${approved}`);
 
-    if (approved === "true") {
-      const tempRegEntry = await Volunteer.findOne({ email });
+//     if (approved === "true") {
+//       const tempRegEntry = await Volunteer.findOne({ email });
 
-      if (!tempRegEntry) {
-        return res.status(404).json({ success: false, message: "Temporary Registration Number not found." });
-      }
+//       if (!tempRegEntry) {
+//         return res.status(404).json({ success: false, message: "Temporary Registration Number not found." });
+//       }
 
-      // Remove 'T/' from the beginning and keep the rest the same
-      const newRegNumber = tempRegEntry.tempRegNumber.replace(/^T\//, "");
+//       // Remove 'T/' from the beginning and keep the rest the same
+//       const newRegNumber = tempRegEntry.tempRegNumber.replace(/^T\//, "");
 
-      // Update the database with the new Registration Number
-      tempRegEntry.tempRegNumber = newRegNumber;
-      await tempRegEntry.save();
-      try {
-        const transporter = nodemailer.createTransport({
-          service: "gmail",
-          auth: {
-            user: "hasanulbanna2255@gmail.com",
-            pass: "wflv nsjo ofba rvov",
-          },
-        });
+//       // Update the database with the new Registration Number
+//       tempRegEntry.tempRegNumber = newRegNumber;
+//       await tempRegEntry.save();
+//       try {
+//         const transporter = nodemailer.createTransport({
+//           service: "gmail",
+//           auth: {
+//             user: "hasanulbanna2255@gmail.com",
+//             pass: "wflv nsjo ofba rvov",
+//           },
+//         });
 
-        const mailOptions = {
-          from: "hasanulbanna2255@gmail.com",
-          to: email,
-          subject: "New Registration Number",
-          html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-        <div style="background-color: #4caf50; padding: 15px; text-align: center; border-top-left-radius: 10px; border-top-right-radius: 10px;">
-          <h2 style="color: #fff; margin: 0;">Welcome!</h2>
-        </div>
-        <div style="padding: 20px; text-align: center;">
-          <p style="font-size: 18px; color: #333;">🎉 Congratulations!</p>
-          <p style="font-size: 16px; color: #555;">Your new Volunteer registration number is:</p>
-          <h2 style="color: #4caf50; font-size: 28px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 5px;">
-            ${newRegNumber}
-          </h2>
-          <p style="font-size: 16px; color: #555;">Keep this number safe for future reference.</p>
-        </div>
-        <hr style="border: none; border-top: 1px solid #ddd;">
-      </div>
-    `,
-        };
-        await transporter.sendMail(mailOptions);
-        console.log("New regNumber send to:", email);
-      } catch (error) {
-        console.log("Error sending email:", error);
-      }
-      console.log(`Updated Registration Number: ${newRegNumber}`);
-    }
-    res.send(`<h1>Done ✅ </h1>`);
-  } catch (error) {
-    console.error("Error approving email:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
+//         const mailOptions = {
+//           from: "hasanulbanna2255@gmail.com",
+//           to: email,
+//           subject: "New Registration Number",
+//           html: `
+//       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
+//         <div style="background-color: #4caf50; padding: 15px; text-align: center; border-top-left-radius: 10px; border-top-right-radius: 10px;">
+//           <h2 style="color: #fff; margin: 0;">Welcome!</h2>
+//         </div>
+//         <div style="padding: 20px; text-align: center;">
+//           <p style="font-size: 18px; color: #333;">🎉 Congratulations!</p>
+//           <p style="font-size: 16px; color: #555;">Your new Volunteer registration number is:</p>
+//           <h2 style="color: #4caf50; font-size: 28px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 5px;">
+//             ${newRegNumber}
+//           </h2>
+//           <p style="font-size: 16px; color: #555;">Keep this number safe for future reference.</p>
+//         </div>
+//         <hr style="border: none; border-top: 1px solid #ddd;">
+//       </div>
+//     `,
+//         };
+//         await transporter.sendMail(mailOptions);
+//         console.log("New regNumber send to:", email);
+//       } catch (error) {
+//         console.log("Error sending email:", error);
+//       }
+//       console.log(`Updated Registration Number: ${newRegNumber}`);
+//     }
+//     res.send(`<h1>Done ✅ </h1>`);
+//   } catch (error) {
+//     console.error("Error approving email:", error);
+//     res.status(500).json({ success: false, message: "Internal Server Error" });
+//   }
+// };
 
 
 
@@ -411,7 +452,7 @@ export const forgotPassword = catchAsyncError(async (req, res, next) => {
     await volunteer.save({ validateBeforeSave: false });
     return next(new ErrorHandler("Cannot send reset password token.", 500));
   }
-});  
+});
 
 
 
@@ -450,34 +491,34 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
 export const getUserCount = catchAsyncError(async (req, res, next) => {
   // First check if volunteer exists in request
   if (!req.volunteer) {
-      return next(new ErrorHandler("Volunteer not found in request. Are you logged in?", 401));
+    return next(new ErrorHandler("Volunteer not found in request. Are you logged in?", 401));
   }
 
-  const volunteerName = req.volunteer.name; 
+  const volunteerName = req.volunteer.name;
   try {
-      // Count users where volunteerName matches the logged-in volunteer's name
-      const userCount = await User.countDocuments({ volunteerName: volunteerName });
-      // Get user details
-      const users = await User.find({ volunteerName: volunteerName })
-          .select('name email createdAt accountVerified')
-          .sort({ createdAt: -1 });
-      // Calculate statistics
-      const verifiedUsers = users.filter(user => user.accountVerified).length;
-      const unverifiedUsers = users.filter(user => !user.accountVerified).length;
+    // Count users where volunteerName matches the logged-in volunteer's name
+    const userCount = await User.countDocuments({ volunteerName: volunteerName });
+    // Get user details
+    const users = await User.find({ volunteerName: volunteerName })
+      .select('name email createdAt accountVerified')
+      .sort({ createdAt: -1 });
+    // Calculate statistics
+    const verifiedUsers = users.filter(user => user.accountVerified).length;
+    const unverifiedUsers = users.filter(user => !user.accountVerified).length;
 
-      res.status(200).json({
-          success: true,
-          data: {
-              totalUsers: userCount,
-              verifiedUsers,
-              unverifiedUsers,
-              recentUsers: users.slice(0, 5), 
-          },
-          message: "User count retrieved successfully",
-      });
+    res.status(200).json({
+      success: true,
+      data: {
+        totalUsers: userCount,
+        verifiedUsers,
+        unverifiedUsers,
+        recentUsers: users.slice(0, 5),
+      },
+      message: "User count retrieved successfully",
+    });
 
   } catch (error) {
-      return next(new ErrorHandler(`Error retrieving user count: ${error.message}`, 500));
+    return next(new ErrorHandler(`Error retrieving user count: ${error.message}`, 500));
   }
 });
 
