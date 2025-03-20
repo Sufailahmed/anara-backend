@@ -4,7 +4,10 @@ import ErrorHandler from "./error.js";
 import jwt from "jsonwebtoken";
 
 export const isAdminAuthenticated = catchAsyncError(async (req, res, next) => {
-    const { token } = req.cookies;
+  let token = req.cookies.token; 
+    if (!token && req.headers.authorization) {
+      token = req.headers.authorization.split(" ")[1]; // Extract token from 'Bearer token'
+    }
     if (!token) {
       return next(new ErrorHandler("Admin is not authenticated.", 400));
     }

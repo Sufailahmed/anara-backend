@@ -4,7 +4,10 @@ import jwt from "jsonwebtoken";
 import { Volunteer } from '../models/volunteerModel.js';
 
 export const isVolunteerAuthenticated = catchAsyncError(async (req, res, next) => {
-    const { token } = req.cookies;
+    let token = req.cookies.token; 
+    if (!token && req.headers.authorization) {
+        token = req.headers.authorization.split(" ")[1]; // Extract token from 'Bearer token'
+      }
     if (!token) {
         return next(new ErrorHandler("Volunteer is not authenticated.", 400));
     }
