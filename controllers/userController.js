@@ -6,7 +6,8 @@ import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
 import nodemailer from 'nodemailer'
 import { Volunteer } from "../models/volunteerModel.js";
-
+import { cloudinaryInstance } from "../config/cloudinary.js";
+import streamifier from "streamifier";
 const otpStore = new Map();
 
 //Send email otp
@@ -186,18 +187,31 @@ export const getVolunteersDropdown = catchAsyncError(async (req, res, next) => {
 });
 
 
+export const uploadToCloudinary = (buffer, folder, resourceType = "auto") => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinaryInstance.uploader.upload_stream(
+      { folder, resource_type: resourceType },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+};
+
+
 
 
 
 //Register
 export const register = catchAsyncError(async (req, res, next) => {
-  const { 
-    name, email, phone, password, guardian, address, currentAddress, dob, gender, 
-    bankAccNumber, bankName, ifsc, volunteerName, pwdCategory, entrepreneurshipInterest 
+  const {
+    name, email, phone, password, guardian, age, address, currentAddress, dob, gender, bankAccNumber, bankName, ifsc, volunteerName, pwdCategory, entrepreneurshipInterest
   } = req.body;
 
   try {
-    if (!name || !email || !phone || !password || !guardian || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !volunteerName || pwdCategory === undefined || entrepreneurshipInterest === undefined) {
+    if (!name || !email || !phone || !password || !guardian || !age || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !volunteerName || pwdCategory === undefined || entrepreneurshipInterest === undefined) {
       return next(new ErrorHandler("All fields are required.", 400));
     }
 
@@ -208,7 +222,7 @@ export const register = catchAsyncError(async (req, res, next) => {
     if (pwdCategory === "Yes" && !req.files.pwdCertificate) {
       return next(new ErrorHandler("PWD Certificate is required.", 400));
     }
-    
+
     if (entrepreneurshipInterest === "Yes" && !req.files.bplCertificate) {
       return next(new ErrorHandler("BPL/marginalized category certificate is required.", 400));
     }
@@ -220,11 +234,11 @@ export const register = catchAsyncError(async (req, res, next) => {
       return next(new ErrorHandler("Email or phone is already registered.", 400));
     }
 
-    // ✅ Ensure regNumber is generated before creating the user
+    // Ensure regNumber is generated before creating the user
     const count = await User.countDocuments();
     const regNumber = `ASF/CANDIDATE/${String(count + 1).padStart(5, '0')}`;
 
-    // ✅ Debugging: Check if regNumber is null
+    // Debugging: Check if regNumber is null
     console.log("Generated regNumber:", regNumber);
 
     if (!regNumber) {
@@ -232,24 +246,44 @@ export const register = catchAsyncError(async (req, res, next) => {
     }
     const validBankAccNumber = bankAccNumber && bankAccNumber.trim() !== "" ? bankAccNumber : "Not Provided";
 
- 
-    // ✅ Now creating user with permanent regNumber
-    const user = await User.create({
-      name, email, phone, password, guardian, address, currentAddress, dob, gender, 
-      bankAccNumber:validBankAccNumber, bankName, ifsc, volunteerName, 
-      pwdCategory, entrepreneurshipInterest,
-      image: req.files.image[0].path,
-      undertaking: req.files.undertaking[0].path,
-      policeVerification: req.files.policeVerification[0].path,
-      educationQualification: req.files.educationQualification[0].path,
-      bankPassbook: req.files.bankPassbook[0].path,
-      pwdCertificate: pwdCategory === "Yes" ? req.files.pwdCertificate[0].path : null,
-      bplCertificate: entrepreneurshipInterest === "Yes" ? req.files.bplCertificate[0].path : null,
-      accountVerified: true,
-      regNumber, // ✅ Assign regNumber before saving
-    });
 
-    console.log("User created with regNumber:", user.regNumber);
+    // Upload Files to Cloudinary
+    const image = await uploadToCloudinary(req.files.image[0].buffer, "users");
+    const undertaking = await uploadToCloudinary(req.files.undertaking[0].buffer, "documents");
+    const policeVerification = await uploadToCloudinary(req.files.policeVerification[0].buffer, "documents");
+    const educationQualification = await uploadToCloudinary(req.files.educationQualification[0].buffer, "documents");
+    const bankPassbook = await uploadToCloudinary(req.files.bankPassbook[0].buffer, "documents");
+    const pwdCertificate = pwdCategory === "Yes" ? await uploadToCloudinary(req.files.pwdCertificate[0].buffer, "documents") : null;
+    const bplCertificate = entrepreneurshipInterest === "Yes" ? await uploadToCloudinary(req.files.bplCertificate[0].buffer, "documents") : null;
+
+    // Create user with tempRegNumber
+    const user = await User.create({
+      name,
+      email,
+      phone,
+      password,
+      guardian,
+      age,
+      address,
+      currentAddress,
+      dob,
+      gender,
+      bankAccNumber: validBankAccNumber,
+      bankName,
+      ifsc,
+      volunteerName,
+      pwdCategory,
+      entrepreneurshipInterest,
+      image,
+      undertaking,
+      policeVerification,
+      educationQualification,
+      bankPassbook,
+      pwdCertificate,
+      bplCertificate,
+      accountVerified: true,
+      regNumber,
+    });
 
     // Send registration confirmation email to the user
     try {
@@ -273,8 +307,9 @@ export const register = catchAsyncError(async (req, res, next) => {
             <div style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
               <p><strong>Name:</strong> ${name}</p>
               <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Registration Number:</strong> ${regNumber}</p>
+              <p><strong> Registration Number:</strong> ${regNumber}</p>
             </div>
+            
             <p>If you have any questions, feel free to reach out to our support team.</p>
             <p>Thank you for choosing Anara! We look forward to having you as part of our community.</p>
             <hr style="border: none; border-top: 1px solid #ddd;">
@@ -288,20 +323,18 @@ export const register = catchAsyncError(async (req, res, next) => {
     } catch (error) {
       console.log("Error sending registration email:", error);
     }
-  
+
     res.status(201).json({
       success: true,
       message: "User registered successfully.",
       user,
     });
+
   } catch (error) {
     console.log(error);
     return next(new ErrorHandler(error, 500));
   }
 });
-
-
-
 
 
 

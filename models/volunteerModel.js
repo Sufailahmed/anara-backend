@@ -14,6 +14,11 @@ const volunteerSchema = new mongoose.Schema({
     required: [true, "Guardian name is required"]
   },
 
+  age: {
+    type: Number,
+    required: [true, "Age is required"]
+  },
+
   address: {
     type: String,
     required: [true, "Address is required"]

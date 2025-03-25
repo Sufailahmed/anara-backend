@@ -6,7 +6,8 @@ import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
 import nodemailer from 'nodemailer'
 import { User } from "../models/userModel.js";
-
+import { cloudinaryInstance } from "../config/cloudinary.js";
+import streamifier from "streamifier";
 const otpStore = new Map();
 
 //Send email otp
@@ -102,7 +103,7 @@ export const verifyEmailOTP = catchAsyncError(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: "Email verified successfully. You can now generate a Temporary Registration Number.",
+    message: "Email verified successfully.",
   });
 });
 
@@ -168,31 +169,31 @@ export const verifyEmailOTP = catchAsyncError(async (req, res, next) => {
 
 
 
+export const uploadToCloudinary = (buffer, folder, resourceType = "auto") => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinaryInstance.uploader.upload_stream(
+      { folder, resource_type: resourceType },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+};
+
+
+
 
 
 //Register
 export const register = catchAsyncError(async (req, res, next) => {
   const {
-    name,
-    email,
-    phone,
-    password,
-    guardian,
-    address,
-    currentAddress,
-    dob,
-    gender,
-    bankAccNumber,
-    bankName,
-    ifsc,
-    educationDegree,
-    educationYearOfCompletion,
-    employmentStatus,
-    monthlyIncomeRange
+    name, email, phone, password, guardian, age, address, currentAddress, dob, gender, bankAccNumber, bankName, ifsc, educationDegree, educationYearOfCompletion, employmentStatus, monthlyIncomeRange
   } = req.body;
 
   try {
-    if (!name || !email || !phone || !password || !guardian || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !educationDegree || !educationYearOfCompletion || !employmentStatus) {
+    if (!name || !email || !phone || !password || !guardian || !age || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !educationDegree || !educationYearOfCompletion || !employmentStatus) {
       return next(new ErrorHandler("All fields are required.", 400));
     }
 
@@ -217,6 +218,13 @@ export const register = catchAsyncError(async (req, res, next) => {
 
     const tempRegNumber = `ASF/FE/${String(count + 1).padStart(5, '0')}`;
 
+
+    const image = await uploadToCloudinary(req.files.image[0].buffer, "users");
+    const undertaking = await uploadToCloudinary(req.files.undertaking[0].buffer, "documents");
+    const policeVerification = await uploadToCloudinary(req.files.policeVerification[0].buffer, "documents");
+    const educationCertificate = await uploadToCloudinary(req.files.educationCertificate[0].buffer, "documents");
+    const bankDocument = await uploadToCloudinary(req.files.bankDocument[0].buffer, "documents");
+
     const volunteerData = {
       name,
       email,
@@ -224,6 +232,7 @@ export const register = catchAsyncError(async (req, res, next) => {
       password,
       guardian,
       address,
+      age,
       currentAddress,
       dob,
       gender,
@@ -231,15 +240,15 @@ export const register = catchAsyncError(async (req, res, next) => {
       bankName,
       ifsc,
       employmentStatus,
-      image: req.files.image[0].path,
-      undertaking: req.files.undertaking[0].path,
-      policeVerification: req.files.policeVerification[0].path,
+      image,
+      undertaking,
+      policeVerification,
       educationQualification: {
         degree: educationDegree,
         yearOfCompletion: educationYearOfCompletion,
-        certificate: req.files.educationCertificate[0].path
+        certificate: educationCertificate
       },
-      bankDocument: req.files.bankDocument[0].path,
+      bankDocument,
       accountVerified: true,
       tempRegNumber,
     };
