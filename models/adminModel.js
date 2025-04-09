@@ -69,4 +69,7 @@ adminSchema.methods.generateResetPasswordToken = function () {
   return resetToken;
 };
 
+
+
+
 export const Admin = mongoose.model("admin", adminSchema);

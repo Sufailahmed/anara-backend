@@ -266,3 +266,46 @@ export const CountVolunteersAndUsers = catchAsyncError(async (req, res, next) =>
     return next(new ErrorHandler("Failed to fetch volunteer and user counts.", 500));
   }
 });
+
+export const getCandidateCountPerVolunteer = catchAsyncError(async (req, res, next) => {
+  try {
+    const aggregation = await User.aggregate([
+      {
+        $group: {
+          _id: "$volunteerRegNum",
+          candidateCount: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: "volunteers",
+          localField: "_id", // volunteerRegNum from User
+          foreignField: "tempRegNumber", // match with Volunteer.regNumber
+          as: "volunteerDetails",
+        },
+      },
+      {
+        $unwind: {
+          path: "$volunteerDetails",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          volunteerRegNumber: "$_id",
+          candidateCount: 1,
+          volunteerName: "$volunteerDetails.name",
+          volunteerEmail: "$volunteerDetails.email",
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: aggregation,
+    });
+  } catch (error) {
+    return next(new ErrorHandler("Failed to fetch candidate count per volunteer.", 500));
+  }
+});

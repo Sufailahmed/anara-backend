@@ -5,7 +5,6 @@ import { sendEmail } from "../utils/sendEmail.js";
 import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
 import nodemailer from 'nodemailer'
-import { Volunteer } from "../models/volunteerModel.js";
 import { cloudinaryInstance } from "../config/cloudinary.js";
 import streamifier from "streamifier";
 const otpStore = new Map();
@@ -109,84 +108,6 @@ export const verifyEmailOTP = catchAsyncError(async (req, res, next) => {
 
 
 
-//Generate temporary register number
-// export const generateTemporaryRegNumber = catchAsyncError(async (req, res, next) => {
-//   const { email } = req.body;
-
-//   if (!email) {
-//     return next(new ErrorHandler("Email is required.", 400));
-//   }
-
-//   // Check if the email has been verified
-//   const storedOtpData = otpStore.get(email);
-
-//   if (!storedOtpData || !storedOtpData.verified) {
-//     return next(new ErrorHandler("Email not verified. Please verify your email first.", 400));
-//   }
-
-//   // Check if tempRegNumber already exists for the email
-//   let tempReg = await userTempReg.findOne({ email });
-
-//   if (!tempReg) {
-//     // Generate new unique Temporary Registration Number
-//     const count = await userTempReg.countDocuments(); // Get count of existing registrations
-//     const tempRegNumber = `T/ASF/CANDIDATE/${String(count + 1).padStart(5, '0')}`;
-
-//     // Save to DB
-//     tempReg = await userTempReg.create({ email, tempRegNumber });
-//   }
-
-//   const message = `
-//     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-//       <h2 style="color: #333;">Temporary Registration Number</h2>
-//       <p>Dear Candidate,</p>
-//       <p>Your Temporary Registration Number is:</p>
-//       <h2 style="color: #4caf50; text-align: center;">${tempReg.tempRegNumber}</h2>
-//       <p>Please use this temporary registration number to proceed with further verification.</p>
-//       <p>Thank you.</p>
-//     </div>
-//   `;
-
-//   try {
-//     await sendEmail({
-//       email,
-//       subject: "Your Temporary Registration Number",
-//       message,
-//     });
-//   } catch (error) {
-//     return next(new ErrorHandler("Failed to send Temporary Registration Number.", 500));
-//   }
-//   res.status(200).json({
-//     success: true,
-//     message: "Temporary Registration Number assigned successfully.",
-//     tempRegNumber: tempReg.tempRegNumber,
-//   });
-// });
-
-
-
-
-
-//Get all volunteers for the dropdown
-export const getVolunteersDropdown = catchAsyncError(async (req, res, next) => {
-  try {
-    const volunteers = await Volunteer.find({}, "name");
-    if (!volunteers || volunteers.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No volunteers found.",
-      });
-    }
-    res.status(200).json({
-      success: true,
-      volunteers,
-    });
-  } catch (error) {
-    return next(new ErrorHandler("Failed to fetch volunteers.", 500));
-  }
-});
-
-
 export const uploadToCloudinary = (buffer, folder, resourceType = "auto") => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinaryInstance.uploader.upload_stream(
@@ -207,16 +128,20 @@ export const uploadToCloudinary = (buffer, folder, resourceType = "auto") => {
 //Register
 export const register = catchAsyncError(async (req, res, next) => {
   const {
-    name, email, phone, password, guardian, age, address, currentAddress, dob, gender, bankAccNumber, bankName, ifsc, volunteerName, pwdCategory, entrepreneurshipInterest
+    name, email, phone, password, guardian, age, address, currentAddress, dob, gender, bankAccNumber, bankName, ifsc, volunteerRegNum, pwdCategory, entrepreneurshipInterest, undertaking
   } = req.body;
 
   try {
-    if (!name || !email || !phone || !password || !guardian || !age || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !volunteerName || pwdCategory === undefined || entrepreneurshipInterest === undefined) {
+    if (!name || !email || !phone || !password || !guardian || !age || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !volunteerRegNum || pwdCategory === undefined || entrepreneurshipInterest === undefined || undertaking === undefined) {
       return next(new ErrorHandler("All fields are required.", 400));
     }
 
-    if (!req.files || !req.files.image || !req.files.undertaking || !req.files.policeVerification || !req.files.educationQualification || !req.files.bankPassbook) {
+    if (!req.files || !req.files.image || !req.files.educationQualification || !req.files.bankPassbook) {
       return next(new ErrorHandler("All required documents must be uploaded.", 400));
+    }
+
+    if (undertaking !== 'true' && undertaking !== true) {
+      return next(new ErrorHandler("Confirmation is required.", 400));
     }
 
     if (pwdCategory === "Yes" && !req.files.pwdCertificate) {
@@ -235,8 +160,9 @@ export const register = catchAsyncError(async (req, res, next) => {
     }
 
     // Ensure regNumber is generated before creating the user
-    const count = await User.countDocuments();
-    const regNumber = `ASF/CANDIDATE/${String(count + 1).padStart(5, '0')}`;
+    const lastUser = await User.findOne().sort({ createdAt: -1 }); // Find the last registered user
+    const lastRegNumber = lastUser?.regNumber?.split("/")?.pop() || "00000"; // Extract last reg number
+    const regNumber = `ASF/CANDIDATE/${String(Number(lastRegNumber) + 1).padStart(5, "0")}`;
 
     // Debugging: Check if regNumber is null
     console.log("Generated regNumber:", regNumber);
@@ -246,17 +172,19 @@ export const register = catchAsyncError(async (req, res, next) => {
     }
     const validBankAccNumber = bankAccNumber && bankAccNumber.trim() !== "" ? bankAccNumber : "Not Provided";
 
-
     // Upload Files to Cloudinary
     const image = await uploadToCloudinary(req.files.image[0].buffer, "users");
-    const undertaking = await uploadToCloudinary(req.files.undertaking[0].buffer, "documents");
-    const policeVerification = await uploadToCloudinary(req.files.policeVerification[0].buffer, "documents");
     const educationQualification = await uploadToCloudinary(req.files.educationQualification[0].buffer, "documents");
     const bankPassbook = await uploadToCloudinary(req.files.bankPassbook[0].buffer, "documents");
+
+    // Police verification optional
+    const policeVerification = req.files.policeVerification
+      ? await uploadToCloudinary(req.files.policeVerification[0].buffer, "documents")
+      : null;
+
     const pwdCertificate = pwdCategory === "Yes" ? await uploadToCloudinary(req.files.pwdCertificate[0].buffer, "documents") : null;
     const bplCertificate = entrepreneurshipInterest === "Yes" ? await uploadToCloudinary(req.files.bplCertificate[0].buffer, "documents") : null;
 
-    // Create user with tempRegNumber
     const user = await User.create({
       name,
       email,
@@ -271,11 +199,11 @@ export const register = catchAsyncError(async (req, res, next) => {
       bankAccNumber: validBankAccNumber,
       bankName,
       ifsc,
-      volunteerName,
+      volunteerRegNum,
       pwdCategory,
       entrepreneurshipInterest,
-      image,
       undertaking,
+      image,
       policeVerification,
       educationQualification,
       bankPassbook,
@@ -298,12 +226,12 @@ export const register = catchAsyncError(async (req, res, next) => {
       const mailOptions = {
         from: "hasanulbanna2255@gmail.com",
         to: email,
-        subject: "Welcome to Anara - Your Registration is Successful!",
+        subject: "Welcome to Anara Skills Foundation - Your Registration is Successful!",
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-            <h2 style="color: #007bff; text-align: center;">🌟 Welcome to Anara, ${name}! 🌟</h2>
+            <h2 style="color: #007bff; text-align: center;">🌟 Welcome to Anara Skills Foundation, ${name}! 🌟</h2>
             <p style="font-size: 16px;">Dear ${name},</p>
-            <p>We are delighted to have you on board! Your registration with Anara has been successfully completed. Below are your details:</p>
+            <p>We are delighted to have you on board! Your registration with Anara Skills Foundation has been successfully completed. Below are your details:</p>
             <div style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
               <p><strong>Name:</strong> ${name}</p>
               <p><strong>Email:</strong> ${email}</p>
@@ -311,7 +239,7 @@ export const register = catchAsyncError(async (req, res, next) => {
             </div>
             
             <p>If you have any questions, feel free to reach out to our support team.</p>
-            <p>Thank you for choosing Anara! We look forward to having you as part of our community.</p>
+            <p>Thank you for choosing Anara Skills Foundation! We look forward to having you as part of our community.</p>
             <hr style="border: none; border-top: 1px solid #ddd;">
             <p style="text-align: center; font-size: 12px; color: #888;">This is an automated email, please do not reply.</p>
           </div>
@@ -335,72 +263,6 @@ export const register = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler(error, 500));
   }
 });
-
-
-
-
-
-//Approve email
-// export const approveEmail = async (req, res) => {
-//   try {
-//     const { email, approved } = req.query;
-//     console.log(`User approval for ${email}: ${approved}`);
-
-//     if (approved === "true") {
-//       const tempRegEntry = await User.findOne({ email });
-
-//       if (!tempRegEntry) {
-//         return res.status(404).json({ success: false, message: "Temporary Registration Number not found." });
-//       }
-
-//       // Remove 'T/' from the beginning and keep the rest the same
-//       const newRegNumber = tempRegEntry.tempRegNumber.replace(/^T\//, "");
-
-//       // Update the database with the new Registration Number
-//       tempRegEntry.tempRegNumber = newRegNumber;
-//       await tempRegEntry.save();
-//       try {
-//         const transporter = nodemailer.createTransport({
-//           service: "gmail",
-//           auth: {
-//             user: "hasanulbanna2255@gmail.com",
-//             pass: "wflv nsjo ofba rvov",
-//           },
-//         });
-//         const mailOptions = {
-//           from: "hasanulbanna2255@gmail.com",
-//           to: email,
-//           subject: "New Registration Number",
-//           html: `
-//       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-//         <div style="background-color: #4caf50; padding: 15px; text-align: center; border-top-left-radius: 10px; border-top-right-radius: 10px;">
-//           <h2 style="color: #fff; margin: 0;">Welcome!</h2>
-//         </div>
-//         <div style="padding: 20px; text-align: center;">
-//           <p style="font-size: 18px; color: #333;">🎉 Congratulations!</p>
-//           <p style="font-size: 16px; color: #555;">Your new registration number is:</p>
-//           <h2 style="color: #4caf50; font-size: 28px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 5px;">
-//             ${newRegNumber}
-//           </h2>
-//           <p style="font-size: 16px; color: #555;">Keep this number safe for future reference.</p>
-//         </div>
-//         <hr style="border: none; border-top: 1px solid #ddd;">
-//       </div>
-//     `,
-//         };
-//         await transporter.sendMail(mailOptions);
-//         console.log("New regNumber send to:", email);
-//       } catch (error) {
-//         console.log("Error sending email:", error);
-//       }
-//       console.log(`Updated Registration Number: ${newRegNumber}`);
-//     }
-//     res.send(`<h1>Done ✅ </h1>`);
-//   } catch (error) {
-//     console.error("Error approving email:", error);
-//     res.status(500).json({ success: false, message: "Internal Server Error" });
-//   }
-// };
 
 
 
@@ -468,7 +330,7 @@ export const forgotPassword = catchAsyncError(async (req, res, next) => {
       <p style="word-break: break-all; color: #007bff;">${resetPasswordUrl}</p>
       <p>If you did not request a password reset, please ignore this email if you have concerns.</p>
       <p>This is an automated message. Please do not reply to this email.</p>
-      <p>Best regards,<br>Anara Team</p>
+      <p>Best regards,<br>Anara Skills Foundation Team</p>
     </div>
   `;
 

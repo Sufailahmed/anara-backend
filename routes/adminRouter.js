@@ -9,6 +9,7 @@ import {
   CountVolunteersAndUsers,
   getAllVolunteers,
   getAllUsers,
+  getCandidateCountPerVolunteer
 } from "../controllers/adminController.js";
 import { isAdminAuthenticated } from "../middlewares/authAdmin.js";
 
@@ -31,5 +32,8 @@ router.get("/volunteers",isAdminAuthenticated, getAllVolunteers) //Get all volun
 router.get("/users",isAdminAuthenticated, getAllUsers) //Get all volunteers and users
 
 router.get("/count",isAdminAuthenticated, CountVolunteersAndUsers) //Count of volunteer and users
+
+router.get("/volunteer-candidate-count", isAdminAuthenticated, getCandidateCountPerVolunteer);
+
 
 export default router;

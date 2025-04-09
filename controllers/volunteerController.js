@@ -111,64 +111,6 @@ export const verifyEmailOTP = catchAsyncError(async (req, res, next) => {
 
 
 
-//Generate temporary register number
-// export const generateTemporaryRegNumber = catchAsyncError(async (req, res, next) => {
-//   const { email } = req.body;
-
-//   if (!email) {
-//     return next(new ErrorHandler("Email is required.", 400));
-//   }
-
-//   // Check if the email has been verified
-//   const storedOtpData = otpStore.get(email);
-
-//   if (!storedOtpData || !storedOtpData.verified) {
-//     return next(new ErrorHandler("Email not verified. Please verify your email first.", 400));
-//   }
-
-//   // Check if tempRegNumber already exists for the email
-//   let tempReg = await volunteerTempReg.findOne({ email });
-
-//   if (!tempReg) {
-//     // Generate new unique Temporary Registration Number
-//     const count = await volunteerTempReg.countDocuments(); // Get count of existing registrations
-//     const tempRegNumber = `T/ASF/FE/${String(count + 1).padStart(5, '0')}`;
-//     // Save to DB
-//     tempReg = await volunteerTempReg.create({ email, tempRegNumber });
-//   } else {
-//     return next(new ErrorHandler("Temp not found.", 400));
-//   }
-
-//   const message = `
-//     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-//       <h2 style="color: #333;">Temporary Registration Number</h2>
-//       <p>Dear Volunteer,</p>
-//       <p>Your Temporary Registration Number is:</p>
-//       <h2 style="color: #4caf50; text-align: center;">${tempReg.tempRegNumber}</h2>
-//       <p>Please use this temporary registration number to proceed with further verification.</p>
-//       <p>Thank you.</p>
-//     </div>
-//   `;
-
-//   try {
-//     await sendEmail({
-//       email,
-//       subject: "Your Temporary Registration Number",
-//       message,
-//     });
-//   } catch (error) {
-//     return next(new ErrorHandler("Failed to send Temporary Registration Number.", 500));
-//   }
-
-//   res.status(200).json({
-//     success: true,
-//     message: "Temporary Registration Number assigned successfully.",
-//     tempRegNumber: tempReg.tempRegNumber,
-//   });
-// });
-
-
-
 export const uploadToCloudinary = (buffer, folder, resourceType = "auto") => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinaryInstance.uploader.upload_stream(
@@ -189,12 +131,17 @@ export const uploadToCloudinary = (buffer, folder, resourceType = "auto") => {
 //Register
 export const register = catchAsyncError(async (req, res, next) => {
   const {
-    name, email, phone, password, guardian, age, address, currentAddress, dob, gender, bankAccNumber, bankName, ifsc, educationDegree, educationYearOfCompletion, employmentStatus, monthlyIncomeRange
+    name, email, phone, password, guardian, age, address, currentAddress, dob, gender, bankAccNumber, bankName, ifsc, educationDegree, educationYearOfCompletion, employmentStatus, monthlyIncomeRange, undertaking
   } = req.body;
 
   try {
-    if (!name || !email || !phone || !password || !guardian || !age || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !educationDegree || !educationYearOfCompletion || !employmentStatus) {
+    if (!name || !email || !phone || !password || !guardian || !age || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName ||!ifsc || !educationDegree || !educationYearOfCompletion || !employmentStatus) {
       return next(new ErrorHandler("All fields are required.", 400));
+    }
+
+    // Check if undertaking confirmation is provided
+    if (undertaking !== 'true' && undertaking !== true) {
+      return next(new ErrorHandler("Confirmation is required.", 400));
     }
 
     // Check if monthly income range is provided when employment status is "Employed"
@@ -202,7 +149,7 @@ export const register = catchAsyncError(async (req, res, next) => {
       return next(new ErrorHandler("Monthly income range is required for employed volunteers.", 400));
     }
 
-    if (!req.files || !req.files.image || !req.files.undertaking || !req.files.policeVerification || !req.files.educationCertificate || !req.files.bankDocument) {
+    if (!req.files || !req.files.image || !req.files.educationCertificate || !req.files.bankDocument) {
       return next(new ErrorHandler("All required documents must be uploaded.", 400));
     }
 
@@ -218,12 +165,15 @@ export const register = catchAsyncError(async (req, res, next) => {
 
     const tempRegNumber = `ASF/FE/${String(count + 1).padStart(5, '0')}`;
 
-
     const image = await uploadToCloudinary(req.files.image[0].buffer, "users");
-    const undertaking = await uploadToCloudinary(req.files.undertaking[0].buffer, "documents");
-    const policeVerification = await uploadToCloudinary(req.files.policeVerification[0].buffer, "documents");
     const educationCertificate = await uploadToCloudinary(req.files.educationCertificate[0].buffer, "documents");
     const bankDocument = await uploadToCloudinary(req.files.bankDocument[0].buffer, "documents");
+
+    // Handle the optional police verification document
+    let policeVerification = null;
+    if (req.files.policeVerification && req.files.policeVerification[0]) {
+      policeVerification = await uploadToCloudinary(req.files.policeVerification[0].buffer, "documents");
+    }
 
     const volunteerData = {
       name,
@@ -241,8 +191,8 @@ export const register = catchAsyncError(async (req, res, next) => {
       ifsc,
       employmentStatus,
       image,
-      undertaking,
-      policeVerification,
+      // undertaking is now a boolean, not a document URL
+      undertaking: undertaking === 'true' || undertaking === true,
       educationQualification: {
         degree: educationDegree,
         yearOfCompletion: educationYearOfCompletion,
@@ -252,6 +202,11 @@ export const register = catchAsyncError(async (req, res, next) => {
       accountVerified: true,
       tempRegNumber,
     };
+
+    // Only add policeVerification to volunteerData if it exists
+    if (policeVerification) {
+      volunteerData.policeVerification = policeVerification;
+    }
 
     // Add monthlyIncomeRange only if employment status is "Employed"
     if (employmentStatus === "Employed") {
@@ -273,19 +228,19 @@ export const register = catchAsyncError(async (req, res, next) => {
       const mailOptions = {
         from: "hasanulbanna2255@gmail.com",
         to: email,
-        subject: "Welcome to Anara - Registration Successful",
+        subject: "Welcome to Anara Skills Foundation - Registration Successful",
         html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-        <h2 style="color: #007bff; text-align: center;">🌟 Welcome to Anara, ${name}! 🌟</h2>
+        <h2 style="color: #007bff; text-align: center;">🌟 Welcome to Anara Skills Foundation, ${name}! 🌟</h2>
         <p style="font-size: 16px;">Dear Volunteer ${name},</p>
-        <p>We are delighted to have you on board! Your registration with Anara has been successfully completed. Below are your details:</p>
+        <p>We are delighted to have you on board! Your registration with Anara Skills Foundation has been successfully completed. Below are your details:</p>
         <div style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
           <p><strong>Name:</strong> ${name}</p>
           <p><strong>Email:</strong> ${email}</p>
           <p><strong>Registration Number:</strong> ${tempRegNumber}</p>
         </div>
         <p>If you have any questions, feel free to reach out to our support team.</p>
-        <p>Thank you for choosing Anara! We look forward to having you as part of our community.</p>
+        <p>Thank you for choosing Anara Skills Foundation! We look forward to having you as part of our community.</p>
         <hr style="border: none; border-top: 1px solid #ddd;">
         <p style="text-align: center; font-size: 12px; color: #888;">This is an automated email, please do not reply.</p>
       </div>
@@ -308,73 +263,6 @@ export const register = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Internal Server Error", 500));
   }
 });
-
-
-
-
-
-//Approve email
-// export const approveEmail = async (req, res) => {
-//   try {
-//     const { email, approved } = req.query;
-//     console.log(`Volunteer approval for ${email}: ${approved}`);
-
-//     if (approved === "true") {
-//       const tempRegEntry = await Volunteer.findOne({ email });
-
-//       if (!tempRegEntry) {
-//         return res.status(404).json({ success: false, message: "Temporary Registration Number not found." });
-//       }
-
-//       // Remove 'T/' from the beginning and keep the rest the same
-//       const newRegNumber = tempRegEntry.tempRegNumber.replace(/^T\//, "");
-
-//       // Update the database with the new Registration Number
-//       tempRegEntry.tempRegNumber = newRegNumber;
-//       await tempRegEntry.save();
-//       try {
-//         const transporter = nodemailer.createTransport({
-//           service: "gmail",
-//           auth: {
-//             user: "hasanulbanna2255@gmail.com",
-//             pass: "wflv nsjo ofba rvov",
-//           },
-//         });
-
-//         const mailOptions = {
-//           from: "hasanulbanna2255@gmail.com",
-//           to: email,
-//           subject: "New Registration Number",
-//           html: `
-//       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-//         <div style="background-color: #4caf50; padding: 15px; text-align: center; border-top-left-radius: 10px; border-top-right-radius: 10px;">
-//           <h2 style="color: #fff; margin: 0;">Welcome!</h2>
-//         </div>
-//         <div style="padding: 20px; text-align: center;">
-//           <p style="font-size: 18px; color: #333;">🎉 Congratulations!</p>
-//           <p style="font-size: 16px; color: #555;">Your new Volunteer registration number is:</p>
-//           <h2 style="color: #4caf50; font-size: 28px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 5px;">
-//             ${newRegNumber}
-//           </h2>
-//           <p style="font-size: 16px; color: #555;">Keep this number safe for future reference.</p>
-//         </div>
-//         <hr style="border: none; border-top: 1px solid #ddd;">
-//       </div>
-//     `,
-//         };
-//         await transporter.sendMail(mailOptions);
-//         console.log("New regNumber send to:", email);
-//       } catch (error) {
-//         console.log("Error sending email:", error);
-//       }
-//       console.log(`Updated Registration Number: ${newRegNumber}`);
-//     }
-//     res.send(`<h1>Done ✅ </h1>`);
-//   } catch (error) {
-//     console.error("Error approving email:", error);
-//     res.status(500).json({ success: false, message: "Internal Server Error" });
-//   }
-// };
 
 
 

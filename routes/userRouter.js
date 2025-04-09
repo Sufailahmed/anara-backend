@@ -10,7 +10,7 @@ import {
   resetPassword,
   // generateTemporaryRegNumber,
   // approveEmail,
-  getVolunteersDropdown,
+  // getVolunteersDropdown,
 } from "../controllers/userController.js";
 import { isAuthenticated } from "../middlewares/auth.js";
 import { upload } from "../multer/upload.js";
@@ -25,18 +25,21 @@ router.post("/verify-email-otp", verifyEmailOTP); //Verify OTP for email verific
 
 // router.get('/approve', approveEmail) //Approve email
 
-router.get("/volunteers", getVolunteersDropdown); //All volunteers for the dropdown
+// router.get("/volunteers", getVolunteersDropdown); //All volunteers for the dropdown
 
-router.post("/register", upload.fields([
-  { name: "image", maxCount: 1 },
-  { name: "undertaking", maxCount: 1 },
-  { name: "policeVerification", maxCount: 1 },
-  { name: "educationQualification", maxCount: 1 },
-  { name: "bankPassbook", maxCount: 1 },
-  {name:"pwdCertificate",maxCount:1},
-  {name:"bplCertificate",maxCount:1},
-]), register); //Register user with image upload
-
+router.post(
+  "/register",
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "undertaking", maxCount: 1 },
+    { name: "policeVerification", maxCount: 1 },
+    { name: "educationQualification", maxCount: 1 },
+    { name: "bankPassbook", maxCount: 1 },
+    { name: "pwdCertificate", maxCount: 1 },
+    { name: "bplCertificate", maxCount: 1 },
+  ]),
+  register
+);
 router.post("/login", login); //Login user
 
 router.get("/logout", isAuthenticated, logout); //Logout user
