@@ -1,6 +1,7 @@
 import ErrorHandler from "../middlewares/error.js";
 import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import { User } from "../models/userModel.js";
+import { Volunteer} from "../models/volunteerModel.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { sendToken } from "../utils/sendToken.js";
 import crypto from "crypto";
@@ -132,7 +133,7 @@ export const register = catchAsyncError(async (req, res, next) => {
   } = req.body;
 
   try {
-    if (!name || !email || !phone || !password || !guardian || !age || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !volunteerRegNum || pwdCategory === undefined || entrepreneurshipInterest === undefined || undertaking === undefined) {
+    if (!name || !email || !phone || !password || !guardian ||  !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName || !ifsc || !volunteerRegNum || pwdCategory === undefined || entrepreneurshipInterest === undefined || undertaking === undefined) {
       return next(new ErrorHandler("All fields are required.", 400));
     }
 
@@ -159,6 +160,12 @@ export const register = catchAsyncError(async (req, res, next) => {
       return next(new ErrorHandler("Email or phone is already registered.", 400));
     }
 
+    // ✅ ADD THIS BLOCK
+const volunteerExists = await Volunteer.findOne({ tempRegNumber: volunteerRegNum });
+
+if (!volunteerExists) {
+  return next(new ErrorHandler("Invalid Volunteer Registration Number. Please check and try again.", 400));
+}
     // Ensure regNumber is generated before creating the user
     const lastUser = await User.findOne().sort({ createdAt: -1 }); // Find the last registered user
     const lastRegNumber = lastUser?.regNumber?.split("/")?.pop() || "00000"; // Extract last reg number

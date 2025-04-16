@@ -163,6 +163,7 @@ export const register = catchAsyncError(async (req, res, next) => {
     const count = await Volunteer.countDocuments();
     console.log(count);
 
+
     const tempRegNumber = `ASF/FE/${String(count + 1).padStart(5, '0')}`;
 
     const image = await uploadToCloudinary(req.files.image[0].buffer, "users");
@@ -384,39 +385,34 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
 
 
 
-//Count of users under volunteer
-export const getUserCount = catchAsyncError(async (req, res, next) => {
-  // First check if volunteer exists in request
-  if (!req.volunteer) {
-    return next(new ErrorHandler("Volunteer not found in request. Are you logged in?", 401));
+export const getUsersUnderVolunteer = catchAsyncError(async (req, res, next) => {
+  const volunteer = req.volunteer;
+  console.log("Volunteer Object:", volunteer);
+
+
+  if (!volunteer) {
+    return next(new ErrorHandler("Unauthorized. Please login again.", 401));
   }
 
-  const volunteerName = req.volunteer.name;
-  try {
-    // Count users where volunteerName matches the logged-in volunteer's name
-    const userCount = await User.countDocuments({ volunteerName: volunteerName });
-    // Get user details
-    const users = await User.find({ volunteerName: volunteerName })
-      .select('name email createdAt accountVerified')
-      .sort({ createdAt: -1 });
-    // Calculate statistics
-    const verifiedUsers = users.filter(user => user.accountVerified).length;
-    const unverifiedUsers = users.filter(user => !user.accountVerified).length;
+  const regNumber = volunteer.tempRegNumber;
+  console.log("Volunteer Temp Reg Number:", regNumber);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        totalUsers: userCount,
-        verifiedUsers,
-        unverifiedUsers,
-        recentUsers: users.slice(0, 5),
-      },
-      message: "User count retrieved successfully",
-    });
 
-  } catch (error) {
-    return next(new ErrorHandler(`Error retrieving user count: ${error.message}`, 500));
-  }
+  const users = await User.find({ volunteerRegNum:regNumber }).select("name email phone accountVerified createdAt").sort({ createdAt: -1 });
+
+  const verifiedUsers = users.filter(user => user.accountVerified).length;
+  const unverifiedUsers = users.length - verifiedUsers;
+
+  res.status(200).json({
+    success: true,
+    message: "Users under volunteer fetched successfully.",
+    stats: {
+      totalUsers: users.length,
+      verifiedUsers,
+      unverifiedUsers,
+    },
+    users,
+  });
 });
 
 

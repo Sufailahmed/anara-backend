@@ -13,8 +13,7 @@ const userSchema = new mongoose.Schema({
     required: [true, "Guardian name is required"]
   },
   age: {
-    type: Number,
-    required: [true, "Age is required"]
+    type: Number
   },
   address: {
     type: String,
