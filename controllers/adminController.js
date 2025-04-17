@@ -246,20 +246,45 @@ export const getAllVolunteers = catchAsyncError(async (req, res, next) => {
 
 
 
+
 //Get all users in Admin Dashboard
 export const getAllUsers = catchAsyncError(async (req, res, next) => {
   try {
+    const users = await User.find({}); // Add filter if needed
 
-    // Fetch all users
-    const users = await User.find({});
+    const userData = await Promise.all(
+      users.map(async (user) => {
+        // Get volunteer if you want to populate volunteer info
+        const volunteer = await Volunteer.findOne({ tempRegNumber: user.volunteerRegNum });
 
-    // Combine the results into a single response
+        return {
+          userDetails: {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            accountVerified: user.accountVerified,
+            volunteerRegNum: user.volunteerRegNum,
+            createdAt: user.createdAt,
+            // Add more user fields as needed
+          },
+          volunteerInfo: volunteer
+            ? {
+                name: volunteer.name,
+                email: volunteer.email,
+              }
+            : null,
+        };
+      })
+    );
+
     res.status(200).json({
       success: true,
-      users,
+      totalUsers: users.length,
+      data: userData,
     });
   } catch (error) {
-    return next(new ErrorHandler("Failed to fetch volunteers and users.", 500));
+    return next(new ErrorHandler("Failed to fetch users.", 500));
   }
 });
 
@@ -358,6 +383,8 @@ export const getVolunteerWithUsers = catchAsyncError(async (req, res, next) => {
 });
 
 
+
+
 export const toggleVolunteerBlock = catchAsyncError(async (req, res, next) => {
   try {
     const { regNumber } = req.params;      // regNumber from URL
@@ -381,5 +408,51 @@ export const toggleVolunteerBlock = catchAsyncError(async (req, res, next) => {
     });
   } catch (error) {
     return next(new ErrorHandler("Failed to update volunteer block status.", 500));
+  }
+});
+
+export const getUserByRegNumber = catchAsyncError(async (req, res, next) => {
+  try {
+    const { regNumber } = req.params;
+
+    const user = await User.findOne({ regNumber });
+
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      user,
+    });
+
+  } catch (error) {
+    return next(new ErrorHandler("Failed to fetch user details.", 500));
+  }
+});
+
+export const toggleUserBlock = catchAsyncError(async (req, res, next) => {
+  try {
+    const { regNumber } = req.params;     // regNumber from URL
+    const { block } = req.body;           // true to block, false to unblock
+
+    const user = await User.findOne({ regNumber });
+
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    // Update block status
+    user.isBlocked = block;
+    await user.save();
+
+    const action = block ? 'blocked' : 'unblocked';
+    res.status(200).json({
+      success: true,
+      message: `User has been ${action} successfully.`,
+    });
+
+  } catch (error) {
+    return next(new ErrorHandler("Failed to update user block status.", 500));
   }
 });

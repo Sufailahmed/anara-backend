@@ -139,6 +139,10 @@ const userSchema = new mongoose.Schema({
   cccCertificate: {
     type: String,
     default: null
+  },
+  isBlocked:{
+    type:Boolean,
+    default:false
   }
 });
 

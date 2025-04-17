@@ -12,6 +12,8 @@ import {
   getCandidateCountPerVolunteer,
   getVolunteerWithUsers,
   toggleVolunteerBlock,
+  getUserByRegNumber,
+  toggleUserBlock
 } from "../controllers/adminController.js";
 import { isAdminAuthenticated } from "../middlewares/authAdmin.js";
 
@@ -37,9 +39,13 @@ router.get("/count",isAdminAuthenticated, CountVolunteersAndUsers) //Count of vo
 
 router.get("/volunteer-candidate-count", isAdminAuthenticated, getCandidateCountPerVolunteer);
 
-router.get("/volunteer/:regNumber", getVolunteerWithUsers);
+router.get("/volunteer/:regNumber", isAdminAuthenticated,getVolunteerWithUsers);
 
-router.put("/volunteer/block/:regNumber", toggleVolunteerBlock);
+router.put("/volunteer/block/:regNumber",isAdminAuthenticated, toggleVolunteerBlock);
+
+router.get("/user/:regNumber",isAdminAuthenticated, getUserByRegNumber);
+
+router.put("/users/block/:regNumber",isAdminAuthenticated, toggleUserBlock);
 
 
 
