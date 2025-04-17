@@ -444,3 +444,43 @@ export const updateCCCStatus = catchAsyncError(async (req, res, next) => {
     user
   });
 });
+
+
+//Check CCC
+export const checkCCCStatus = catchAsyncError(async (req, res, next) => {
+  const user = req.user;
+  
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+  
+  res.status(200).json({
+    success: true,
+    cccCertified: user.cccCertified === "Yes" ? true : false
+  });
+});
+
+//Job roles and Courses
+export const updateJobRolesAndCourses = catchAsyncError(async (req, res, next) => {
+  const { jobRoles, courses } = req.body;
+  const userId = req.user._id;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  if (jobRoles) user.jobRoles = jobRoles;
+  if (courses) user.courses = courses;
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Job roles and courses updated successfully.",
+    data: {
+      jobRoles: user.jobRoles,
+      courses: user.courses
+    }
+  });
+});
