@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { type } from "os";
 
 const volunteerSchema = new mongoose.Schema({
   name: {
@@ -156,6 +157,10 @@ const volunteerSchema = new mongoose.Schema({
   tempRegNumber: {
     type: String,
     unique: true
+  },
+  isBlocked:{
+    type:Boolean,
+    default:false
   }
 });
 

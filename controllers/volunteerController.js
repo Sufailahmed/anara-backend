@@ -135,7 +135,9 @@ export const register = catchAsyncError(async (req, res, next) => {
   } = req.body;
 
   try {
-    if (!name || !email || !phone || !password || !guardian || !age || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName ||!ifsc || !educationDegree || !educationYearOfCompletion || !employmentStatus) {
+    if (!name || !email || !phone || !password || !guardian || !age || !address || !currentAddress || !dob || !gender || !bankAccNumber || !bankName ||!ifsc || !educationDegree || !educationYearOfCompletion || !employmentStatus 
+      || !monthlyIncomeRange
+    ) {
       return next(new ErrorHandler("All fields are required.", 400));
     }
 
@@ -200,6 +202,7 @@ export const register = catchAsyncError(async (req, res, next) => {
         certificate: educationCertificate
       },
       bankDocument,
+      monthlyIncomeRange,
       accountVerified: true,
       tempRegNumber,
     };
@@ -387,18 +390,15 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
 
 export const getUsersUnderVolunteer = catchAsyncError(async (req, res, next) => {
   const volunteer = req.volunteer;
-  console.log("Volunteer Object:", volunteer);
-
 
   if (!volunteer) {
     return next(new ErrorHandler("Unauthorized. Please login again.", 401));
   }
 
   const regNumber = volunteer.tempRegNumber;
-  console.log("Volunteer Temp Reg Number:", regNumber);
 
-
-  const users = await User.find({ volunteerRegNum:regNumber }).select("name email phone accountVerified createdAt").sort({ createdAt: -1 });
+  // Fetch all fields of users under the volunteer
+  const users = await User.find({ volunteerRegNum: regNumber }).sort({ createdAt: -1 });
 
   const verifiedUsers = users.filter(user => user.accountVerified).length;
   const unverifiedUsers = users.length - verifiedUsers;
@@ -414,6 +414,7 @@ export const getUsersUnderVolunteer = catchAsyncError(async (req, res, next) => 
     users,
   });
 });
+
 
 
 

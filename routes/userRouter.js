@@ -21,25 +21,19 @@ router.post("/send-email-otp", sendEmailOTP); //OTP for email verification
 
 router.post("/verify-email-otp", verifyEmailOTP); //Verify OTP for email verification
 
-// router.post("/generate-temp-reg", generateTemporaryRegNumber); //Generate temporary registration number
-
-// router.get('/approve', approveEmail) //Approve email
-
-// router.get("/volunteers", getVolunteersDropdown); //All volunteers for the dropdown
-
 router.post(
   "/register",
   upload.fields([
     { name: "image", maxCount: 1 },
     { name: "undertaking", maxCount: 1 },
     { name: "policeVerification", maxCount: 1 },
-    { name: "educationQualification", maxCount: 1 },
+    { name: "educationDocument", maxCount: 1 },
     { name: "bankPassbook", maxCount: 1 },
     { name: "pwdCertificate", maxCount: 1 },
     { name: "bplCertificate", maxCount: 1 },
   ]),
   register
-);
+); //Register user with image upload
 router.post("/login", login); //Login user
 
 router.get("/logout", isAuthenticated, logout); //Logout user

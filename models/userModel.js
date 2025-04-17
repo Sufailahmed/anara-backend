@@ -46,6 +46,11 @@ const userSchema = new mongoose.Schema({
   },
   educationQualification: {
     type: String,
+    required: [true, "Education qualification is required"],
+    enum: ["5th", "6th", "7th", "8th", "9th", "10th", "ITI"]  
+  },
+  educationDocument: {  
+    type: String,
     required: [true, "Education qualification document is required"]
   },
   email: {
@@ -127,7 +132,6 @@ const userSchema = new mongoose.Schema({
     unique: true
   },
 });
-
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {

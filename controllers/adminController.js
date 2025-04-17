@@ -211,18 +211,36 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
 //Get all volunteers in Admin Dashboard
 export const getAllVolunteers = catchAsyncError(async (req, res, next) => {
   try {
-    // Fetch all volunteers
     const volunteers = await Volunteer.find({});
 
-    // Combine the results into a single response
+    const volunteerData = await Promise.all(
+      volunteers.map(async (volunteer) => {
+        const userCount = await User.countDocuments({ volunteerRegNum: volunteer.tempRegNumber });
+
+        return {
+          volunteerDetails: {
+            _id: volunteer._id,
+            name: volunteer.name,
+            tempRegNumber: volunteer.tempRegNumber,
+            isBlocked: volunteer.isBlocked, 
+            // Add more fields as needed
+          },
+          userCount,
+        };
+      })
+    );
+
     res.status(200).json({
       success: true,
-      volunteers,
+      totalVolunteers: volunteers.length,
+      data: volunteerData,
     });
   } catch (error) {
     return next(new ErrorHandler("Failed to fetch volunteers.", 500));
   }
 });
+
+
 
 
 
@@ -307,5 +325,60 @@ export const getCandidateCountPerVolunteer = catchAsyncError(async (req, res, ne
     });
   } catch (error) {
     return next(new ErrorHandler("Failed to fetch candidate count per volunteer.", 500));
+  }
+});
+
+
+export const getVolunteerWithUsers = catchAsyncError(async (req, res, next) => {
+  try {
+    const { regNumber } = req.params;
+
+    // Step 1: Find the volunteer using tempRegNumber
+    const volunteer = await Volunteer.findOne({ tempRegNumber: regNumber });
+
+    if (!volunteer) {
+      return next(new ErrorHandler("Volunteer not found", 404));
+    }
+
+    // Step 2: Find all users registered under this volunteer's regNumber
+    const users = await User.find({ volunteerRegNum: volunteer.tempRegNumber });
+
+    // Step 3: Return response with volunteer and users
+    res.status(200).json({
+      success: true,
+      volunteerDetails: volunteer,
+      registeredUsers: users,
+      userCount: users.length,
+    });
+
+  } catch (error) {
+    return next(new ErrorHandler("Failed to fetch volunteer and users.", 500));
+  }
+});
+
+
+export const toggleVolunteerBlock = catchAsyncError(async (req, res, next) => {
+  try {
+    const { regNumber } = req.params;      // regNumber from URL
+    const { block } = req.body;            // true to block, false to unblock
+
+    const volunteer = await Volunteer.findOne({ tempRegNumber: regNumber });
+
+    if (!volunteer) {
+      return next(new ErrorHandler("Volunteer not found", 404));
+    }
+
+    // Update block status based on request
+    volunteer.isBlocked = block;
+    await volunteer.save();
+
+    // Send response based on the block status
+    const action = block ? 'blocked' : 'unblocked';
+    res.status(200).json({
+      success: true,
+      message: `Volunteer has been ${action} successfully.`,
+    });
+  } catch (error) {
+    return next(new ErrorHandler("Failed to update volunteer block status.", 500));
   }
 });
