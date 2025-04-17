@@ -409,3 +409,38 @@ export const getUser = catchAsyncError(async (req, res, next) => {
     user,
   });
 });
+
+
+
+//--------Dashboard-------------
+export const updateCCCStatus = catchAsyncError(async (req, res, next) => {
+  const { cccCertified } = req.body;
+  
+  if (!cccCertified) {
+    return next(new ErrorHandler("CCC certification status is required", 400));
+  }
+  
+  const user = req.user;
+  
+  if (cccCertified === "Yes" && !req.files?.cccCertificate) {
+    return next(new ErrorHandler("CCC Certificate is required", 400));
+  }
+  
+  user.cccCertified = cccCertified;
+  
+  if (cccCertified === "Yes" && req.files?.cccCertificate) {
+    const certificateUrl = await uploadToCloudinary(
+      req.files.cccCertificate[0].buffer, 
+      "certificates"
+    );
+    user.cccCertificate = certificateUrl;
+  }
+  
+  await user.save();
+  
+  res.status(200).json({
+    success: true,
+    message: "CCC certification status updated successfully",
+    user
+  });
+});

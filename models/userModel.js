@@ -47,9 +47,9 @@ const userSchema = new mongoose.Schema({
   educationQualification: {
     type: String,
     required: [true, "Education qualification is required"],
-    enum: ["5th", "6th", "7th", "8th", "9th", "10th", "ITI"]  
+    enum: ["5th", "6th", "7th", "8th", "9th", "10th", "ITI"]
   },
-  educationDocument: {  
+  educationDocument: {
     type: String,
     required: [true, "Education qualification document is required"]
   },
@@ -131,6 +131,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true
   },
+  cccCertified: {
+    type: String,
+    enum: ["Yes", "No", "Pending"],
+    default: "Pending"
+  },
+  cccCertificate: {
+    type: String,
+    default: null
+  }
 });
 
 userSchema.pre("save", async function (next) {

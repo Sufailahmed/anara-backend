@@ -58,6 +58,7 @@ adminSchema.methods.generateToken = function () {
 
 adminSchema.methods.generateResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(20).toString("hex");
+  
 
   this.resetPasswordToken = crypto
     .createHash("sha256")

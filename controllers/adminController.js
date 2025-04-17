@@ -223,6 +223,7 @@ export const getAllVolunteers = catchAsyncError(async (req, res, next) => {
             name: volunteer.name,
             tempRegNumber: volunteer.tempRegNumber,
             isBlocked: volunteer.isBlocked, 
+            email:volunteer.email
             // Add more fields as needed
           },
           userCount,

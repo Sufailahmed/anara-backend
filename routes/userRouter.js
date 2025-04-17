@@ -8,9 +8,7 @@ import {
   getUser,
   forgotPassword,
   resetPassword,
-  // generateTemporaryRegNumber,
-  // approveEmail,
-  // getVolunteersDropdown,
+  updateCCCStatus,
 } from "../controllers/userController.js";
 import { isAuthenticated } from "../middlewares/auth.js";
 import { upload } from "../multer/upload.js";
@@ -43,5 +41,8 @@ router.get("/me", isAuthenticated, getUser); //Get user information
 router.post("/forgot-password", forgotPassword); //Forgot password
 
 router.put("/reset-password/:token", resetPassword); //Reset password with token
+
+// ----Dashboard-----
+router.post("/update-ccc-status", isAuthenticated,upload.fields([{ name: "cccCertificate", maxCount: 1 }]),updateCCCStatus); //Update CCC status with certificate upload
 
 export default router;
