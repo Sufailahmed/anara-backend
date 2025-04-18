@@ -141,13 +141,14 @@ const userSchema = new mongoose.Schema({
     default: null
   },
   jobRoles: {
-    type: [String],
-    default: []
+    type: String,
+    default: ''
   },
   courses: {
-    type: [String],
-    default: []
+    type: String,
+    default: ''
   }
+  
   
 });
 
