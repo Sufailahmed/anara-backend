@@ -265,6 +265,7 @@ export const getAllUsers = catchAsyncError(async (req, res, next) => {
             phone: user.phone,
             accountVerified: user.accountVerified,
             regNumber:user.regNumber,
+            isBlocked:user.isBlocked,
             createdAt: user.createdAt,
             // Add more user fields as needed
           },

@@ -147,8 +147,11 @@ const userSchema = new mongoose.Schema({
   courses: {
     type: String,
     default: ''
-  }
-  
+  }, 
+  isBlocked:{
+      type:Boolean,
+      default:false
+    }
   
 });
 
