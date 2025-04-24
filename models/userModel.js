@@ -151,7 +151,15 @@ const userSchema = new mongoose.Schema({
   isBlocked:{
       type:Boolean,
       default:false
-    }
+    },
+    jobRole: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'JobRole',
+    },
+    selectedCourse: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course',
+    },
   
 });
 

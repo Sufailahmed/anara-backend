@@ -8,6 +8,8 @@ import crypto from "crypto";
 import nodemailer from 'nodemailer'
 import { cloudinaryInstance } from "../config/cloudinary.js";
 import streamifier from "streamifier";
+import { JobRole } from "../models/JobRoles.js";
+import { Course } from "../models/Course.js";
 const otpStore = new Map();
 
 //Send email otp
@@ -482,5 +484,70 @@ export const updateJobRolesAndCourses = catchAsyncError(async (req, res, next) =
       jobRoles: user.jobRoles,
       courses: user.courses
     }
+  });
+});
+
+
+
+
+// Get all job roles for user dashboard
+export const getJobRolesForUser = catchAsyncError(async (req, res, next) => {
+  const roles = await JobRole.find().select("name description");
+  res.status(200).json({ success: true, roles });
+});
+
+// Search courses based on job role name or description
+export const searchCoursesByJobRole = catchAsyncError(async (req, res, next) => {
+  const { keyword } = req.query;
+
+  if (!keyword) {
+    return next(new ErrorHandler("Keyword is required.", 400));
+  }
+
+  // Find job roles where name or description matches the keyword
+  const matchingRoles = await JobRole.find({
+    $or: [
+      { name: { $regex: keyword, $options: "i" } },
+      { description: { $regex: keyword, $options: "i" } },
+    ],
+  }).populate("courses");
+
+  // Collect all related courses from matched job roles
+  const courseMap = new Map();
+
+  matchingRoles.forEach(role => {
+    role.courses.forEach(course => {
+      if (!courseMap.has(course._id.toString())) {
+        courseMap.set(course._id.toString(), course);
+      }
+    });
+  });
+
+  const courses = Array.from(courseMap.values());
+
+  res.status(200).json({
+    success: true,
+    totalCourses: courses.length,
+    courses,
+  });
+});
+
+
+// Save selected job role and course for the user
+export const saveSelectedJobRoleAndCourse = catchAsyncError(async (req, res, next) => {
+  const { jobRoleId, courseId } = req.body;
+  const userId = req.user._id;
+
+  const user = await User.findById(userId);
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  user.jobRole = jobRoleId;
+  user.selectedCourse = courseId;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Job role and course selected successfully",
+    user,
   });
 });

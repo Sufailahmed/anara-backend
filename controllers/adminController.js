@@ -6,7 +6,7 @@ import { adminToken } from "../utils/adminToken.js";
 import crypto from "crypto";
 import { User } from "../models/userModel.js";
 import { Volunteer } from "../models/volunteerModel.js";
-import { JobRole } from "../models/JobRole.js";
+import { JobRole} from "../models/JobRoles.js";
 import { Course } from "../models/Course.js";
 
 //Register
