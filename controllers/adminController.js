@@ -6,6 +6,8 @@ import { adminToken } from "../utils/adminToken.js";
 import crypto from "crypto";
 import { User } from "../models/userModel.js";
 import { Volunteer } from "../models/volunteerModel.js";
+import { JobRole } from "../models/JobRole.js";
+import { Course } from "../models/Course.js";
 
 //Register
 export const register = catchAsyncError(async (req, res, next) => {
@@ -457,3 +459,45 @@ export const toggleUserBlock = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Failed to update user block status.", 500));
   }
 });
+
+
+// Create a course
+export const createCourse = catchAsyncError(async (req, res, next) => {
+  const { title, description } = req.body;
+  const course = await Course.create({ title, description });
+  res.status(201).json({ success: true, course });
+});
+
+// Get all courses
+export const getCourses = catchAsyncError(async (req, res, next) => {
+  const courses = await Course.find();
+  res.status(200).json({ success: true, courses });
+});
+
+// Delete a course
+export const deleteCourse = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  await Course.findByIdAndDelete(id);
+  res.status(200).json({ success: true, message: "Course deleted" });
+});
+
+// Create a job role
+export const createJobRole = catchAsyncError(async (req, res, next) => {
+  const { name, description, courseIds } = req.body;
+  const jobRole = await JobRole.create({ name, description, courses: courseIds });
+  res.status(201).json({ success: true, jobRole });
+});
+
+// Get all job roles with course details
+export const getJobRoles = catchAsyncError(async (req, res, next) => {
+  const roles = await JobRole.find().populate('courses');
+  res.status(200).json({ success: true, roles });
+});
+
+// Delete a job role
+export const deleteJobRole = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  await JobRole.findByIdAndDelete(id);
+  res.status(200).json({ success: true, message: "Job role deleted" });
+});
+

@@ -13,7 +13,13 @@ import {
   getVolunteerWithUsers,
   toggleVolunteerBlock,
   getUserByRegNumber,
-  toggleUserBlock
+  toggleUserBlock,
+  createCourse,
+  getCourses,
+  deleteCourse,
+  createJobRole,
+  getJobRoles,
+  deleteJobRole
 } from "../controllers/adminController.js";
 import { isAdminAuthenticated } from "../middlewares/authAdmin.js";
 
@@ -46,6 +52,15 @@ router.put("/volunteer/block/:regNumber",isAdminAuthenticated, toggleVolunteerBl
 router.get("/user/:regNumber",isAdminAuthenticated, getUserByRegNumber);
 
 router.put("/users/block/:regNumber",isAdminAuthenticated, toggleUserBlock);
+
+router.post("/courses",isAdminAuthenticated, createCourse);
+router.get("/courses", isAdminAuthenticated,getCourses);
+router.delete("/courses/:id",isAdminAuthenticated, deleteCourse);
+
+// Job role routes
+router.post("/jobroles", isAdminAuthenticated,createJobRole);
+router.get("/jobroles", isAdminAuthenticated,getJobRoles);
+router.delete("/jobroles/:id", isAdminAuthenticated,deleteJobRole);
 
 
 
