@@ -522,27 +522,27 @@ export const getJobRoles = catchAsyncError(async (req, res, next) => {
 export const deleteJobRole = catchAsyncError(async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const jobRole = await JobRole.findById(id);
     if (!jobRole) {
       return next(new ErrorHandler("Job role not found", 404));
     }
-    
+
     const associatedCourses = jobRole.courses || [];
-    
+
     await JobRole.findByIdAndDelete(id);
-    
+
     for (const courseId of associatedCourses) {
       const otherJobRolesWithThisCourse = await JobRole.countDocuments({
-        _id: { $ne: id }, 
-        courses: courseId 
+        _id: { $ne: id },
+        courses: courseId
       });
-      
+
       if (otherJobRolesWithThisCourse === 0) {
         await Course.findByIdAndDelete(courseId);
       }
     }
-    
+
     res.status(200).json({
       success: true,
       message: "Job role and its exclusive courses deleted successfully"
@@ -648,21 +648,57 @@ export const updateCourse = catchAsyncError(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Course updated successfully",
-    course
   });
 });
 
 
 
 
-// Get all courses with associated job roles
+// Get all courses with job roles
 export const getCourses = catchAsyncError(async (req, res, next) => {
-  const jobRoles = await JobRole.find().populate('courses');
+  try {
+    const courses = await Course.find().lean();
+    const jobRoles = await JobRole.find().populate('courses').lean();
+    const courseToJobRolesMap = {};
 
-  res.status(200).json({
-    success: true,
-    jobRoles: jobRoles
-  });
+    jobRoles.forEach(role => {
+      role.courses.forEach(course => {
+        if (!courseToJobRolesMap[course._id]) {
+          courseToJobRolesMap[course._id] = [];
+        }
+        courseToJobRolesMap[course._id].push({
+          roleId: role._id,
+          roleName: role.name,
+          roleDescription: role.description
+        });
+      });
+    });
+
+    const enhancedCourses = courses.map(course => {
+      return {
+        ...course,
+        jobRoles: courseToJobRolesMap[course._id] || []
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      courses: enhancedCourses,
+      jobRoles: jobRoles.map(role => ({
+        _id: role._id,
+        name: role.name,
+        description: role.description,
+        courses: role.courses.map(course => ({
+          _id: course._id,
+          title: course.title,
+          description: course.description,
+          image: course.image
+        }))
+      }))
+    });
+  } catch (error) {
+    return next(new ErrorHandler("Failed to fetch courses and job roles.", 500));
+  }
 });
 
 
