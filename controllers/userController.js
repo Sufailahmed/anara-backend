@@ -471,70 +471,30 @@ export const checkCCCStatus = catchAsyncError(async (req, res, next) => {
 //---------Job-roles and courses------------
 
 
-//Update job-roles and courses
-export const updateJobRolesAndCourses = catchAsyncError(async (req, res, next) => {
-  const { jobRoles, courses } = req.body;
-  const userId = req.user._id;
 
-  const user = await User.findById(userId);
-  if (!user) {
-    return next(new ErrorHandler("User not found", 404));
-  }
-
-  if (jobRoles) user.jobRoles = jobRoles;
-  if (courses) user.courses = courses;
-
-  await user.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Job roles and courses updated successfully.",
-    data: {
-      jobRoles: user.jobRoles,
-      courses: user.courses
-    }
-  });
-});
-
-
-
-// Get all job roles for user dashboard
-export const getJobRolesForUser = catchAsyncError(async (req, res, next) => {
-  const roles = await JobRole.find().select("name description");
-  res.status(200).json({ success: true, roles });
+// Get all courses for user 
+export const getCoursesForUser = catchAsyncError(async (req, res, next) => {
+  const courses = await Course.find().select("title description duration level");
+  res.status(200).json({ success: true, courses });
 });
 
 
 
 
-// Search courses based on job role name or description
-export const searchCoursesByJobRole = catchAsyncError(async (req, res, next) => {
+// Search courses based on name 
+export const searchCourses = catchAsyncError(async (req, res, next) => {
   const { keyword } = req.query;
 
   if (!keyword) {
     return next(new ErrorHandler("Keyword is required.", 400));
   }
 
-  // Find job roles where name or description matches the keyword
-  const matchingRoles = await JobRole.find({
+  const courses = await Course.find({
     $or: [
-      { name: { $regex: keyword, $options: "i" } },
+      { title: { $regex: keyword, $options: "i" } },
       { description: { $regex: keyword, $options: "i" } },
     ],
-  }).populate("courses");
-
-  // Collect all related courses from matched job roles
-  const courseMap = new Map();
-
-  matchingRoles.forEach(role => {
-    role.courses.forEach(course => {
-      if (!courseMap.has(course._id.toString())) {
-        courseMap.set(course._id.toString(), course);
-      }
-    });
   });
-
-  const courses = Array.from(courseMap.values());
 
   res.status(200).json({
     success: true,
@@ -546,7 +506,70 @@ export const searchCoursesByJobRole = catchAsyncError(async (req, res, next) => 
 
 
 
-//Check course select or not
+// Save selected course
+export const selectCourse = catchAsyncError(async (req, res, next) => {
+  const { courseId } = req.body;
+  const userId = req.user._id;
+
+  if (!courseId) {
+    return next(new ErrorHandler("Course ID is required", 400));
+  }
+
+  const user = await User.findById(userId);
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  // Validate course exists
+  const courseExists = await Course.findById(courseId);
+  if (!courseExists) {
+    return next(new ErrorHandler("Invalid course ID", 400));
+  }
+
+  user.selectedCourse = courseId;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Course selected successfully",
+    user,
+  });
+});
+
+
+
+
+//Update course
+export const updateCourses = catchAsyncError(async (req, res, next) => {
+  const { courseId } = req.body;
+  const userId = req.user._id;
+
+  if (!courseId) {
+    return next(new ErrorHandler("Course ID must be provided", 400));
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Validate and update courseId
+  const courseExists = await Course.findById(courseId);
+  if (!courseExists) {
+    return next(new ErrorHandler("Invalid course ID", 400));
+  }
+  
+  user.selectedCourse = courseId;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Course updated successfully.",
+  });
+});
+
+
+
+
+// Updated to check only selected course
 export const checkCourseSelection = catchAsyncError(async (req, res, next) => {
   const user = req.user;
 
@@ -556,45 +579,15 @@ export const checkCourseSelection = catchAsyncError(async (req, res, next) => {
 
   // Check if user has selected a course
   const hasSelectedCourse = user.selectedCourse ? true : false;
-  
+
   // Get more details about the selected course if it exists
   let courseDetails = null;
   if (hasSelectedCourse) {
     courseDetails = await Course.findById(user.selectedCourse).select("name description duration level");
   }
 
-  // Get more details about the selected job role if it exists
-  let jobRoleDetails = null;
-  if (user.jobRole) {
-    jobRoleDetails = await JobRole.findById(user.jobRole).select("name description");
-  }
-
   res.status(200).json({
     success: true,
     hasSelectedCourse,
-    selectedCourseId: user.selectedCourse,
-    selectedJobRoleId: user.jobRole
-  });
-});
-
-
-
-
-// Save selected job role and course for the user
-export const saveSelectedJobRoleAndCourse = catchAsyncError(async (req, res, next) => {
-  const { jobRoleId, courseId } = req.body;
-  const userId = req.user._id;
-
-  const user = await User.findById(userId);
-  if (!user) return next(new ErrorHandler("User not found", 404));
-
-  user.jobRole = jobRoleId;
-  user.selectedCourse = courseId;
-  await user.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Job role and course selected successfully",
-    user,
   });
 });

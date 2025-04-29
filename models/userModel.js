@@ -140,27 +140,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
-  jobRoles: {
-    type: String,
-    default: ''
+  selectedCourse: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
   },
-  courses: {
-    type: String,
-    default: ''
-  }, 
-  isBlocked:{
-      type:Boolean,
-      default:false
-    },
-    jobRole: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'JobRole',
-    },
-    selectedCourse: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Course',
-    },
-  
+  isBlocked: {
+    type: Boolean,
+    default: false
+  }
+
 });
 
 userSchema.pre("save", async function (next) {
