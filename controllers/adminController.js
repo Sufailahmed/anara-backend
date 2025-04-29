@@ -6,8 +6,10 @@ import { adminToken } from "../utils/adminToken.js";
 import crypto from "crypto";
 import { User } from "../models/userModel.js";
 import { Volunteer } from "../models/volunteerModel.js";
-import { JobRole} from "../models/JobRoles.js";
+import { JobRole } from "../models/JobRoles.js";
 import { Course } from "../models/Course.js";
+import { cloudinaryInstance } from "../config/cloudinary.js";
+import streamifier from "streamifier";
 
 //Register
 export const register = catchAsyncError(async (req, res, next) => {
@@ -145,7 +147,7 @@ export const forgotPassword = catchAsyncError(async (req, res, next) => {
       subject: "MERN Authentication App - Reset Password",
       message,
     });
-    
+
     res.status(200).json({
       success: true,
       message: `Reset password email sent to ${admin.email}.`,
@@ -224,8 +226,8 @@ export const getAllVolunteers = catchAsyncError(async (req, res, next) => {
             _id: volunteer._id,
             name: volunteer.name,
             tempRegNumber: volunteer.tempRegNumber,
-            isBlocked: volunteer.isBlocked, 
-            email:volunteer.email
+            isBlocked: volunteer.isBlocked,
+            email: volunteer.email
             // Add more fields as needed
           },
           userCount,
@@ -266,16 +268,16 @@ export const getAllUsers = catchAsyncError(async (req, res, next) => {
             email: user.email,
             phone: user.phone,
             accountVerified: user.accountVerified,
-            regNumber:user.regNumber,
-            isBlocked:user.isBlocked,
+            regNumber: user.regNumber,
+            isBlocked: user.isBlocked,
             createdAt: user.createdAt,
             // Add more user fields as needed
           },
           volunteerInfo: volunteer
             ? {
-                name: volunteer.name,
-                email: volunteer.email,
-              }
+              name: volunteer.name,
+              email: volunteer.email,
+            }
             : null,
         };
       })
@@ -290,6 +292,7 @@ export const getAllUsers = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Failed to fetch users.", 500));
   }
 });
+
 
 
 
@@ -314,6 +317,11 @@ export const CountVolunteersAndUsers = catchAsyncError(async (req, res, next) =>
   }
 });
 
+
+
+
+
+//Get candidates count per volunteer
 export const getCandidateCountPerVolunteer = catchAsyncError(async (req, res, next) => {
   try {
     const aggregation = await User.aggregate([
@@ -358,6 +366,10 @@ export const getCandidateCountPerVolunteer = catchAsyncError(async (req, res, ne
 });
 
 
+
+
+
+//Get volunteers with users
 export const getVolunteerWithUsers = catchAsyncError(async (req, res, next) => {
   try {
     const { regNumber } = req.params;
@@ -388,6 +400,8 @@ export const getVolunteerWithUsers = catchAsyncError(async (req, res, next) => {
 
 
 
+
+//Toggle volunteer block
 export const toggleVolunteerBlock = catchAsyncError(async (req, res, next) => {
   try {
     const { regNumber } = req.params;      // regNumber from URL
@@ -414,6 +428,11 @@ export const toggleVolunteerBlock = catchAsyncError(async (req, res, next) => {
   }
 });
 
+
+
+
+
+//Get user by reg num
 export const getUserByRegNumber = catchAsyncError(async (req, res, next) => {
   try {
     const { regNumber } = req.params;
@@ -434,6 +453,11 @@ export const getUserByRegNumber = catchAsyncError(async (req, res, next) => {
   }
 });
 
+
+
+
+
+//Toggle user block
 export const toggleUserBlock = catchAsyncError(async (req, res, next) => {
   try {
     const { regNumber } = req.params;     // regNumber from URL
@@ -461,32 +485,29 @@ export const toggleUserBlock = catchAsyncError(async (req, res, next) => {
 });
 
 
-// Create a course
-export const createCourse = catchAsyncError(async (req, res, next) => {
-  const { title, description } = req.body;
-  const course = await Course.create({ title, description });
-  res.status(201).json({ success: true, course });
-});
 
-// Get all courses
-export const getCourses = catchAsyncError(async (req, res, next) => {
-  const courses = await Course.find();
-  res.status(200).json({ success: true, courses });
-});
+//-------Job-roles----------------
 
-// Delete a course
-export const deleteCourse = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  await Course.findByIdAndDelete(id);
-  res.status(200).json({ success: true, message: "Course deleted" });
-});
 
 // Create a job role
 export const createJobRole = catchAsyncError(async (req, res, next) => {
-  const { name, description, courseIds } = req.body;
-  const jobRole = await JobRole.create({ name, description, courses: courseIds });
-  res.status(201).json({ success: true, jobRole });
+  const { name, description } = req.body;
+
+  if (!name || !description) {
+    return next(new ErrorHandler("Name and description are required.", 400));
+  }
+
+  const jobRole = await JobRole.create({ name, description });
+
+  res.status(201).json({
+    success: true,
+    message: "Job role created successfully",
+    jobRole
+  });
 });
+
+
+
 
 // Get all job roles with course details
 export const getJobRoles = catchAsyncError(async (req, res, next) => {
@@ -494,10 +515,180 @@ export const getJobRoles = catchAsyncError(async (req, res, next) => {
   res.status(200).json({ success: true, roles });
 });
 
-// Delete a job role
+
+
+
+// Delete job role 
 export const deleteJobRole = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  await JobRole.findByIdAndDelete(id);
-  res.status(200).json({ success: true, message: "Job role deleted" });
+  try {
+    const { id } = req.params;
+    
+    const jobRole = await JobRole.findById(id);
+    if (!jobRole) {
+      return next(new ErrorHandler("Job role not found", 404));
+    }
+    
+    const associatedCourses = jobRole.courses || [];
+    
+    await JobRole.findByIdAndDelete(id);
+    
+    for (const courseId of associatedCourses) {
+      const otherJobRolesWithThisCourse = await JobRole.countDocuments({
+        _id: { $ne: id }, 
+        courses: courseId 
+      });
+      
+      if (otherJobRolesWithThisCourse === 0) {
+        await Course.findByIdAndDelete(courseId);
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: "Job role and its exclusive courses deleted successfully"
+    });
+  } catch (error) {
+    return next(new ErrorHandler(`Failed to delete job role: ${error.message}`, 500));
+  }
 });
 
+
+
+
+
+//-------Courses----------------
+
+export const uploadToCloudinary = (buffer, folder, resourceType = "auto") => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinaryInstance.uploader.upload_stream(
+      { folder, resource_type: resourceType },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+};
+
+// Create a course
+export const createCourse = catchAsyncError(async (req, res, next) => {
+  const { title, description, jobRoles } = req.body;
+
+  if (!title || !description) {
+    return next(new ErrorHandler("Title and description are required.", 400));
+  }
+
+  if (!req.files || !req.files.image) {
+    return next(new ErrorHandler("Course image is required.", 400));
+  }
+
+  try {
+    const image = await uploadToCloudinary(req.files.image[0].buffer, "courses");
+    const course = await Course.create({ title, description, image });
+
+    if (jobRoles && jobRoles.length > 0) {
+      await JobRole.updateMany(
+        { _id: { $in: jobRoles } },
+        { $addToSet: { courses: course._id } }
+      );
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Course created successfully",
+      course
+    });
+  } catch (error) {
+    return next(new ErrorHandler("Failed to create course.", 500));
+  }
+});
+
+
+
+
+//Update course
+export const updateCourse = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const { title, description, jobRoles } = req.body;
+
+  const course = await Course.findById(id);
+  if (!course) {
+    return next(new ErrorHandler("Course not found", 404));
+  }
+
+  if (title) course.title = title;
+  if (description) course.description = description;
+
+  if (req.files && req.files.image) {
+    try {
+      const image = await uploadToCloudinary(req.files.image[0].buffer, "courses");
+      course.image = image;
+    } catch (error) {
+      return next(new ErrorHandler("Failed to upload image.", 500));
+    }
+  }
+
+  await course.save();
+
+  if (jobRoles !== undefined) {
+    await JobRole.updateMany(
+      { courses: course._id },
+      { $pull: { courses: course._id } }
+    );
+
+    if (jobRoles && jobRoles.length > 0) {
+      await JobRole.updateMany(
+        { _id: { $in: jobRoles } },
+        { $addToSet: { courses: course._id } }
+      );
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Course updated successfully",
+    course
+  });
+});
+
+
+
+
+// Get all courses with associated job roles
+export const getCourses = catchAsyncError(async (req, res, next) => {
+  const jobRoles = await JobRole.find().populate('courses');
+
+  res.status(200).json({
+    success: true,
+    jobRoles: jobRoles
+  });
+});
+
+
+
+
+
+// Delete a course
+export const deleteCourse = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+
+  // Find the course
+  const course = await Course.findById(id);
+  if (!course) {
+    return next(new ErrorHandler("Course not found", 404));
+  }
+
+  // Remove this course from all job roles that have it
+  await JobRole.updateMany(
+    { courses: course._id },
+    { $pull: { courses: course._id } }
+  );
+
+  // Delete the course
+  await Course.findByIdAndDelete(id);
+  res.status(200).json({
+    success: true,
+    message: "Course deleted successfully"
+  });
+});

@@ -14,6 +14,7 @@ import {
   searchCoursesByJobRole,
   getJobRolesForUser,
   saveSelectedJobRoleAndCourse,
+  checkCourseSelection,
 } from "../controllers/userController.js";
 import { isAuthenticated } from "../middlewares/auth.js";
 import { upload } from "../multer/upload.js";
@@ -52,14 +53,17 @@ router.post("/update-ccc-status", isAuthenticated,upload.fields([{ name: "cccCer
 
 router.get('/ccc-status', isAuthenticated, checkCCCStatus); //Get CCC status
 
-router.post("/update-job-courses", isAuthenticated, updateJobRolesAndCourses);
+router.post("/update-job-courses", isAuthenticated, updateJobRolesAndCourses); //Update job course
 
-router.get("/dashboard/jobroles", isAuthenticated,getJobRolesForUser);
+router.get("/dashboard/jobroles", isAuthenticated,getJobRolesForUser); //job-roles
 
-router.get("/dashboard/search-courses",isAuthenticated, searchCoursesByJobRole);
+router.get("/dashboard/search-courses",isAuthenticated, searchCoursesByJobRole); //search courses
 
-router.post("/dashboard/select", isAuthenticated,saveSelectedJobRoleAndCourse);
+router.get("/dashboard/course-selection", isAuthenticated, checkCourseSelection); //Check course selection
+
+router.post("/dashboard/select", isAuthenticated,saveSelectedJobRoleAndCourse); //save select job-roles and course
 
 
 
 export default router;
+

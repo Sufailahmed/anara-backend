@@ -415,31 +415,33 @@ export const getUser = catchAsyncError(async (req, res, next) => {
 
 
 //--------Dashboard-------------
+
+//CCC cetificate
 export const updateCCCStatus = catchAsyncError(async (req, res, next) => {
   const { cccCertified } = req.body;
-  
+
   if (!cccCertified) {
     return next(new ErrorHandler("CCC certification status is required", 400));
   }
-  
+
   const user = req.user;
-  
+
   if (cccCertified === "Yes" && !req.files?.cccCertificate) {
     return next(new ErrorHandler("CCC Certificate is required", 400));
   }
-  
+
   user.cccCertified = cccCertified;
-  
+
   if (cccCertified === "Yes" && req.files?.cccCertificate) {
     const certificateUrl = await uploadToCloudinary(
-      req.files.cccCertificate[0].buffer, 
+      req.files.cccCertificate[0].buffer,
       "certificates"
     );
     user.cccCertificate = certificateUrl;
   }
-  
+
   await user.save();
-  
+
   res.status(200).json({
     success: true,
     message: "CCC certification status updated successfully",
@@ -448,21 +450,28 @@ export const updateCCCStatus = catchAsyncError(async (req, res, next) => {
 });
 
 
+
+
 //Check CCC
 export const checkCCCStatus = catchAsyncError(async (req, res, next) => {
   const user = req.user;
-  
+
   if (!user) {
     return next(new ErrorHandler("User not found", 404));
   }
-  
+
   res.status(200).json({
     success: true,
     cccCertified: user.cccCertified === "Yes" ? true : false
   });
 });
 
-//Job roles and Courses
+
+
+//---------Job-roles and courses------------
+
+
+//Update job-roles and courses
 export const updateJobRolesAndCourses = catchAsyncError(async (req, res, next) => {
   const { jobRoles, courses } = req.body;
   const userId = req.user._id;
@@ -489,12 +498,14 @@ export const updateJobRolesAndCourses = catchAsyncError(async (req, res, next) =
 
 
 
-
 // Get all job roles for user dashboard
 export const getJobRolesForUser = catchAsyncError(async (req, res, next) => {
   const roles = await JobRole.find().select("name description");
   res.status(200).json({ success: true, roles });
 });
+
+
+
 
 // Search courses based on job role name or description
 export const searchCoursesByJobRole = catchAsyncError(async (req, res, next) => {
@@ -531,6 +542,42 @@ export const searchCoursesByJobRole = catchAsyncError(async (req, res, next) => 
     courses,
   });
 });
+
+
+
+
+//Check course select or not
+export const checkCourseSelection = catchAsyncError(async (req, res, next) => {
+  const user = req.user;
+
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Check if user has selected a course
+  const hasSelectedCourse = user.selectedCourse ? true : false;
+  
+  // Get more details about the selected course if it exists
+  let courseDetails = null;
+  if (hasSelectedCourse) {
+    courseDetails = await Course.findById(user.selectedCourse).select("name description duration level");
+  }
+
+  // Get more details about the selected job role if it exists
+  let jobRoleDetails = null;
+  if (user.jobRole) {
+    jobRoleDetails = await JobRole.findById(user.jobRole).select("name description");
+  }
+
+  res.status(200).json({
+    success: true,
+    hasSelectedCourse,
+    selectedCourseId: user.selectedCourse,
+    selectedJobRoleId: user.jobRole
+  });
+});
+
+
 
 
 // Save selected job role and course for the user

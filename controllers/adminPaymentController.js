@@ -1,213 +1,160 @@
-// import ErrorHandler from "../middlewares/error.js";
-// import { catchAsyncError } from "../middlewares/catchAsyncError.js";
-// import { PaymentRequest } from "../models/paymentModel.js";
-// import Razorpay from "razorpay";
-// import crypto from "crypto";
-// import { Volunteer } from "../models/volunteerModel.js";
+import { PaymentRequest } from '../models/paymentModel.js';
 
-// // Initialize Razorpay
-// const razorpay = new Razorpay({
-//     key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_fnksr3F0Q4J7nS",
-//     key_secret: process.env.RAZORPAY_KEY_SECRET || "jsJsuYifJn3u44DKdXEqmqSI",
-// });
-// console.log("Razorpay secret loaded:", !!process.env.RAZORPAY_KEY_SECRET);
+export const getAllPaymentRequests = async (req, res) => {
+    try {
+        const { status } = req.query;
 
+        const query = status ? { status } : {};
 
-// // Get all payment requests for admin dashboard
-// export const getAllPaymentRequests = catchAsyncError(async (req, res, next) => {
-//   const admin = req.admin;
-  
-//   if (!admin) {
-//     return next(new ErrorHandler("Unauthorized. Please login again.", 401));
-//   }
-  
-//   const paymentRequests = await PaymentRequest.find()
-//     .populate("volunteer", "name email phone tempRegNumber bankAccNumber bankName ifsc")
-//     .populate("approvals.admin", "name email")
-//     .sort({ requestDate: -1 });
-  
-//   res.status(200).json({
-//     success: true,
-//     paymentRequests
-//   });
-// });
+        const paymentRequests = await PaymentRequest.find(query)
+            .populate('volunteer', 'name email registrationNumber')
+            .populate('approvals.admin', 'name email')
+            .sort({ requestDate: -1 });
 
-// // Approve a payment request
-// export const approvePaymentRequest = catchAsyncError(async (req, res, next) => {
-//   const admin = req.admin;
-//   const { requestId } = req.params;
-  
-//   if (!admin) {
-//     return next(new ErrorHandler("Unauthorized. Please login again.", 401));
-//   }
-  
-//   const paymentRequest = await PaymentRequest.findById(requestId);
-  
-//   if (!paymentRequest) {
-//     return next(new ErrorHandler("Payment request not found.", 404));
-//   }
-  
-//   // Check if admin has already approved
-//   const alreadyApproved = paymentRequest.approvals.some(
-//     approval => approval.admin.toString() === admin._id.toString()
-//   );
-  
-//   if (alreadyApproved) {
-//     return next(new ErrorHandler("You have already approved this request.", 400));
-//   }
-  
-//   // Add admin's approval
-//   paymentRequest.approvals.push({ admin: admin._id });
-  
-//   // Check if we have at least 3 approvals
-//   if (paymentRequest.approvals.length >= 3) {
-//     paymentRequest.status = "approved";
-//   }
-  
-//   await paymentRequest.save();
-  
-//   res.status(200).json({
-//     success: true,
-//     message: "Payment request approved successfully.",
-//     paymentRequest
-//   });
-// });
+        return res.status(200).json({
+            success: true,
+            count: paymentRequests.length,
+            paymentRequests
+        });
+    } catch (error) {
+        console.error('Error fetching payment requests:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch payment requests',
+            error: error.message
+        });
+    }
+};
 
-// // Process payment after approval
-// export const processPayment = catchAsyncError(async (req, res, next) => {
-//   const admin = req.admin;
-//   const { requestId } = req.params;
-  
-//   if (!admin) {
-//     return next(new ErrorHandler("Unauthorized. Please login again.", 401));
-//   }
-  
-//   const paymentRequest = await PaymentRequest.findById(requestId)
-//     .populate("volunteer", "name email phone tempRegNumber bankAccNumber bankName ifsc");
-  
-//   if (!paymentRequest) {
-//     return next(new ErrorHandler("Payment request not found.", 404));
-//   }
-  
-//   if (paymentRequest.status !== "approved") {
-//     return next(new ErrorHandler("Payment request is not approved yet.", 400));
-//   }
-  
-//   // Create Razorpay order
-//   const order = await razorpay.orders.create({
-//     amount: paymentRequest.amount * 100, // amount in paise
-//     currency: "INR",
-//     receipt: `receipt_${paymentRequest._id}`,
-//     notes: {
-//       volunteerRegNumber: paymentRequest.volunteerRegNumber,
-//       userCount: paymentRequest.userCount
-//     }
-//   });
-  
-//   // Update payment request with order details
-//   paymentRequest.razorpayOrderId = order.id;
-//   await paymentRequest.save();
-  
-//   res.status(200).json({
-//     success: true,
-//     order,
-//     paymentRequest,
-//     key_id: process.env.RAZORPAY_KEY_ID
-//   });
-// });
+export const approvePaymentRequest = async (req, res) => {
+    try {
+        const { requestId } = req.params;
+        const adminId = req.admin.id;
 
-// // Verify payment and update status
-// export const verifyPayment = catchAsyncError(async (req, res, next) => {
-//   const { razorpayOrderId, razorpayPaymentId, signature } = req.body;
+        const paymentRequest = await PaymentRequest.findById(requestId);
 
-//   const secret = process.env.RAZORPAY_KEY_SECRET || "jsJsuYifJn3u44DKdXEqmqSI";
+        if (!paymentRequest) {
+            return res.status(404).json({ message: 'Payment request not found' });
+        }
 
-//   if (!secret) {
-//     return next(new ErrorHandler("Razorpay secret key is not defined.", 500));
-//   }
+        // Check if admin has already approved this request
+        const alreadyApproved = paymentRequest.approvals.some(
+            approval => approval.admin.toString() === adminId
+        );
 
-//   const generatedSignature = crypto
-//     .createHmac("sha256", secret)
-//     .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-//     .digest("hex");
+        if (alreadyApproved) {
+            return res.status(400).json({
+                success: false,
+                message: 'You have already approved this request'
+            });
+        }
 
-//   if (generatedSignature !== signature) {
-//     return next(new ErrorHandler("Payment verification failed.", 400));
-//   }
+        // Add this admin's approval
+        paymentRequest.approvals.push({ admin: adminId });
 
-//   const paymentRequest = await PaymentRequest.findOne({ razorpayOrderId });
+        // Check if we have at least 3 approvals now
+        if (paymentRequest.approvals.length >= 3 && paymentRequest.status === 'pending') {
+            paymentRequest.status = 'approved';
+        }
 
-//   if (!paymentRequest) {
-//     return next(new ErrorHandler("Payment request not found.", 404));
-//   }
+        await paymentRequest.save();
 
-//   paymentRequest.razorpayPaymentId = razorpayPaymentId;
-//   paymentRequest.status = "paid";
-//   paymentRequest.paymentDate = Date.now();
-//   await paymentRequest.save();
+        return res.status(200).json({
+            success: true,
+            message: paymentRequest.status === 'approved'
+                ? 'Payment request has been approved with required approvals'
+                : `Payment request approval recorded (${paymentRequest.approvals.length}/3 approvals)`,
+            paymentRequest
+        });
+    } catch (error) {
+        console.error('Error approving payment request:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to approve payment request',
+            error: error.message
+        });
+    }
+};
 
-//   res.status(200).json({
-//     success: true,
-//     message: "Payment processed successfully.",
-//     paymentRequest,
-//   });
-// });
+export const rejectPaymentRequest = async (req, res) => {
+    try {
+        const { requestId } = req.params;
+        const adminId = req.admin.id;
 
+        const paymentRequest = await PaymentRequest.findById(requestId);
 
-// // Reject a payment request
-// export const rejectPaymentRequest = catchAsyncError(async (req, res, next) => {
-//   const admin = req.admin;
-//   const { requestId } = req.params;
-//   const { reason } = req.body;
-  
-//   if (!admin) {
-//     return next(new ErrorHandler("Unauthorized. Please login again.", 401));
-//   }
-  
-//   const paymentRequest = await PaymentRequest.findById(requestId);
-  
-//   if (!paymentRequest) {
-//     return next(new ErrorHandler("Payment request not found.", 404));
-//   }
-  
-//   paymentRequest.status = "rejected";
-//   paymentRequest.rejectionReason = reason || "No reason provided";
-//   await paymentRequest.save();
-  
-//   res.status(200).json({
-//     success: true,
-//     message: "Payment request rejected successfully.",
-//     paymentRequest
-//   });
-// });
+        if (!paymentRequest) {
+            return res.status(404).json({ message: 'Payment request not found' });
+        }
 
-// // Get payment statistics for admin dashboard
-// export const getPaymentStats = catchAsyncError(async (req, res, next) => {
-//   const admin = req.admin;
-  
-//   if (!admin) {
-//     return next(new ErrorHandler("Unauthorized. Please login again.", 401));
-//   }
-  
-//   const totalRequests = await PaymentRequest.countDocuments();
-//   const pendingRequests = await PaymentRequest.countDocuments({ status: "pending" });
-//   const approvedRequests = await PaymentRequest.countDocuments({ status: "approved" });
-//   const paidRequests = await PaymentRequest.countDocuments({ status: "paid" });
-//   const rejectedRequests = await PaymentRequest.countDocuments({ status: "rejected" });
-  
-//   // Calculate total amount paid
-//   const paidPayments = await PaymentRequest.find({ status: "paid" });
-//   const totalAmountPaid = paidPayments.reduce((sum, payment) => sum + payment.amount, 0);
-  
-//   res.status(200).json({
-//     success: true,
-//     stats: {
-//       totalRequests,
-//       pendingRequests,
-//       approvedRequests,
-//       paidRequests,
-//       rejectedRequests,
-//       totalAmountPaid
-//     }
-//   });
-// });
+        if (paymentRequest.status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot reject request with status: ${paymentRequest.status}`
+            });
+        }
+
+        // Update status to rejected
+        paymentRequest.status = 'rejected';
+        // Add a rejection note if provided
+        if (req.body.rejectionReason) {
+            paymentRequest.rejectionReason = req.body.rejectionReason;
+        }
+
+        await paymentRequest.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Payment request has been rejected',
+            paymentRequest
+        });
+    } catch (error) {
+        console.error('Error rejecting payment request:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to reject payment request',
+            error: error.message
+        });
+    }
+};
+
+export const markAsPaid = async (req, res) => {
+    try {
+        const { requestId } = req.params;
+        const { razorpayPaymentId, razorpayOrderId } = req.body;
+
+        const paymentRequest = await PaymentRequest.findById(requestId);
+
+        if (!paymentRequest) {
+            return res.status(404).json({ message: 'Payment request not found' });
+        }
+
+        if (paymentRequest.status !== 'approved') {
+            return res.status(400).json({
+                success: false,
+                message: 'Only approved payment requests can be marked as paid'
+            });
+        }
+
+        // Update payment details
+        paymentRequest.status = 'paid';
+        paymentRequest.razorpayPaymentId = razorpayPaymentId;
+        paymentRequest.razorpayOrderId = razorpayOrderId;
+        paymentRequest.paymentDate = Date.now();
+
+        await paymentRequest.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Payment request has been marked as paid',
+            paymentRequest
+        });
+    } catch (error) {
+        console.error('Error marking payment as paid:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to mark payment as paid',
+            error: error.message
+        });
+    }
+};

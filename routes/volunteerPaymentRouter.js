@@ -1,11 +1,11 @@
-// import express from "express";
-// import { requestPayment, getVolunteerPaymentRequests } from "../controllers/volunteerPaymentController.js";
-// import { isVolunteerAuthenticated } from "../middlewares/authVolunteer.js";
+import express from 'express';
+import { createPaymentRequest, getVolunteerPaymentRequests } from '../controllers/volunteerPaymentController.js';
+import { isVolunteerAuthenticated } from "../middlewares/authVolunteer.js";
 
-// const router = express.Router();
+const router = express.Router();
 
-// router.post("/request", isVolunteerAuthenticated, requestPayment); // Request payment
+router.post('/request', isVolunteerAuthenticated, createPaymentRequest); //Create request 
 
-// router.get("/history", isVolunteerAuthenticated, getVolunteerPaymentRequests); // Get payment history
+router.get('/my-requests', isVolunteerAuthenticated, getVolunteerPaymentRequests); //My requests
 
-// export default router;
+export default router;
