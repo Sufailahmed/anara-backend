@@ -290,6 +290,8 @@ export const register = catchAsyncError(async (req, res, next) => {
 //Login
 export const login = catchAsyncError(async (req, res, next) => {
   const { email, password } = req.body;
+  
+
 
   if (!email || !password) {
     return next(new ErrorHandler("Email and password are required.", 400));
