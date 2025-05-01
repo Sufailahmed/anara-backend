@@ -14,7 +14,7 @@ export const isAdminAuthenticated = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Admin is not authenticated.", 400));
   }
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  const decoded = jwt.verify(token, process.env.ADMIN_SECRET_KEY);
   req.user = await Admin.findById(decoded.id);
 
   next();

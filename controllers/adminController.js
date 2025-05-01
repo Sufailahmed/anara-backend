@@ -111,7 +111,7 @@ export const getadmin = catchAsyncError(async (req, res, next) => {
   const admin = req.admin;
   res.status(200).json({
     success: true,
-    admin,
+    admin
   });
 });
 

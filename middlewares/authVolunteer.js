@@ -14,7 +14,7 @@ export const isVolunteerAuthenticated = catchAsyncError(async (req, res, next) =
       return next(new ErrorHandler("Volunteer is not authenticated.", 400));
     }
   
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const decoded = jwt.verify(token, process.env.VOLUNTEER_SECRET_KEY);
     req.user = await Volunteer.findById(decoded.id);
   
     next();
