@@ -11,8 +11,12 @@ const letterHeadSchema = new mongoose.Schema({
   },
   image_id: {
     type: String,
-    ref: 'Signature', // or another image model you use
+    ref: 'Document', // or another image model you use
     required: false
+  },
+  public_id: {
+    type: String,
+    required: [true, "Public id is required"]
   },
   file_link: {
     type: String,
