@@ -10,7 +10,7 @@ export const uploadImage = async (req, res) => {
       }
       console.log(req.body);
       const { userId, userName } = req.body;
-
+  
       if (!userId || !userName) {
         return res.status(400).json({ message: "User ID and name are required" });
       }

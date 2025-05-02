@@ -12,7 +12,8 @@ const CourseSchema = new mongoose.Schema({
   image: {
     type: String,
     required: [true, "Course image is required"],
-  }
+  },
+  qualifications: [user.educationQualification]
 }, {
   timestamps: true
 });
