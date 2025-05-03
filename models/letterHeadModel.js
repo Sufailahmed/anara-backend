@@ -15,11 +15,11 @@ const letterHeadSchema = new mongoose.Schema({
     required: false
   },
   public_id: {
-    type: String,
+    type: [Object],
     required: [true, "Public id is required"]
   },
   file_link: {
-    type: String,
+    type: [Object],
     required: [true, "File link is required"]
   },
   createdAt: {

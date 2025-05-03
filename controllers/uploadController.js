@@ -10,7 +10,7 @@ export const uploadImage = async (req, res) => {
       }
       console.log(req.body);
       const { userId, userName } = req.body;
-  
+
       if (!userId || !userName) {
         return res.status(400).json({ message: "User ID and name are required" });
       }
@@ -148,27 +148,36 @@ export const editImage = async (req, res) => {
 
 export const uploadFile = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "No files uploaded" });
     }
 
     const {subject, body_text, image_id} = req.body;
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'files', // ✅ Optional folder name in Cloudinary
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result);
-        }
-      );
-      stream.end(req.file.buffer);
-    });
+   
+    const fileLinks = [];
+    const publicIds = [];
+    for (const file of req.files) {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'files',
+            resource_type: 'auto',
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        stream.end(file.buffer);
+      });
+
+      fileLinks.push(result.secure_url,);
+      publicIds.push(result.public_id);
+    }
 
     const letterHead = await LetterHead.create({
-      file_link: result.secure_url,
-      public_id: result.public_id,
+      file_link: fileLinks,
+      public_id: publicIds,
       image_id: image_id,
       subject: subject,
       body_text: body_text
