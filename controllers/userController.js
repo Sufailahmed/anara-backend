@@ -476,14 +476,48 @@ export const checkCCCStatus = catchAsyncError(async (req, res, next) => {
 
 // Get all courses for user 
 export const getCoursesForUser = catchAsyncError(async (req, res, next) => {
+  const userQualification = req.user.educationQualification;
+  const allowedQualifications = getAllowedQualifications(userQualification);
+
+  console.log(userQualification);
+
+  if (!userQualification) {
+    return res.status(400).json({
+      success: false,
+      message: "User qualification not found",
+    });
+  }
+
   const jobRoles = await JobRole.find()
     .select("name description courses")
     .populate({
-      path: "courses", // assuming the field in your schema is called "courses"
-      select: "title description duration", // choose which fields from the Course model to return
+      path: "courses",
+      select: "title description duration qualification", // include qualification for filtering
     });
-  res.status(200).json({ success: true, jobRoles });
+
+  // Filter courses based on qualification
+  const filteredJobRoles = jobRoles.map((role) => {
+    const filteredCourses = role.courses.filter((course) =>
+      (course.qualification || []).some((q) => allowedQualifications.includes(q))
+    );
+
+    return {
+      _id: role._id,
+      name: role.name,
+      description: role.description,
+      courses: filteredCourses,
+    };
+  });
+
+  res.status(200).json({ success: true, jobRoles: filteredJobRoles });
 });
+
+const qualificationOrder = ["5th", "6th", "7th", "8th", "9th", "10th", "ITI"];
+const getAllowedQualifications = (userQualification) => {
+  const index = qualificationOrder.indexOf(userQualification);
+  if (index === -1) return []; // invalid qualification
+  return qualificationOrder.slice(0, index + 1); // inclusive range
+};
 
 
 
