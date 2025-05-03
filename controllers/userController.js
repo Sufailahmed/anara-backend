@@ -476,8 +476,13 @@ export const checkCCCStatus = catchAsyncError(async (req, res, next) => {
 
 // Get all courses for user 
 export const getCoursesForUser = catchAsyncError(async (req, res, next) => {
-  const courses = await Course.find().select("title description duration level");
-  res.status(200).json({ success: true, courses });
+  const jobRoles = await JobRole.find()
+    .select("name description courses")
+    .populate({
+      path: "courses", // assuming the field in your schema is called "courses"
+      select: "title description duration", // choose which fields from the Course model to return
+    });
+  res.status(200).json({ success: true, jobRoles });
 });
 
 

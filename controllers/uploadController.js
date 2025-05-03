@@ -78,7 +78,7 @@ export const uploadImage = async (req, res) => {
 
 export const getImages = async (req, res) => {
   try {
-    const imageUrls = await Signature.find().select("url public_id userId name -_id");
+    const imageUrls = await Signature.find().select("url public_id userId name");
 
     return res.status(200).json({ images: imageUrls });
   } catch (error) {
