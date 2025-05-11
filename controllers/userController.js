@@ -236,13 +236,13 @@ export const register = catchAsyncError(async (req, res, next) => {
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
-          user: "hasanulbanna2255@gmail.com",
-          pass: "wflv nsjo ofba rvov",
+          user: "contactus@anaraskills.org",
+          pass: "zcqs pmzb oahp msgl",
         },
       });
 
       const mailOptions = {
-        from: "hasanulbanna2255@gmail.com",
+        from: "contactus@anaraskills.org",
         to: email,
         subject: "Welcome to Anara Skills Foundation - Your Registration is Successful!",
         html: `
@@ -476,49 +476,45 @@ export const checkCCCStatus = catchAsyncError(async (req, res, next) => {
 
 // Get all courses for user 
 export const getCoursesForUser = catchAsyncError(async (req, res, next) => {
-  const userQualification = req.user.educationQualification;
-  const allowedQualifications = getAllowedQualifications(userQualification);
+    
+    const userQualification = req.user.educationQualification;
+    const qualificationOrder = ["5th", "6th", "7th", "8th", "9th", "10th", "ITI"];
 
-  console.log(userQualification);
+    const userIndex = qualificationOrder.indexOf(userQualification);
+    if (userIndex === -1) {
+      return res.status(400).json({ success: false, message: "Invalid qualification" });
+    }
 
-  if (!userQualification) {
-    return res.status(400).json({
-      success: false,
-      message: "User qualification not found",
-    });
-  }
+    if (!userQualification) {
+      return res.status(400).json({
+        success: false,
+        message: "User qualification not found",
+      });
+    }
 
-  const jobRoles = await JobRole.find()
-    .select("name description courses")
-    .populate({
-      path: "courses",
-      select: "title description duration qualification", // include qualification for filtering
-    });
+    const jobRoles = await JobRole.find()
+      .select("name description courses")
+      .populate({
+        path: "courses",
+        select: "title description duration qualifications image", // include qualification for filtering
+      });
 
-  // Filter courses based on qualification
-  const filteredJobRoles = jobRoles.map((role) => {
-    const filteredCourses = role.courses.filter((course) =>
-      (course.qualification || []).some((q) => allowedQualifications.includes(q))
-    );
+    // Filter courses based on qualification
+    const filteredJobRoles = jobRoles
+    .map(role => {
+      const eligibleCourses = role.courses.filter(course => {
+        const courseIndex = qualificationOrder.indexOf(course.qualifications);
+        return courseIndex !== -1 && courseIndex <= userIndex;
+      });
+      return {
+        ...role._doc,
+        courses: eligibleCourses
+      };
+    })
+    .filter(role => role.courses.length > 0);
 
-    return {
-      _id: role._id,
-      name: role.name,
-      description: role.description,
-      courses: filteredCourses,
-    };
+    res.status(200).json({ success: true, jobRoles: filteredJobRoles });
   });
-
-  res.status(200).json({ success: true, jobRoles: filteredJobRoles });
-});
-
-const qualificationOrder = ["5th", "6th", "7th", "8th", "9th", "10th", "ITI"];
-const getAllowedQualifications = (userQualification) => {
-  const index = qualificationOrder.indexOf(userQualification);
-  if (index === -1) return []; // invalid qualification
-  return qualificationOrder.slice(0, index + 1); // inclusive range
-};
-
 
 
 
